@@ -1,0 +1,492 @@
+{% autoescape true %}
+
+class PackageUI {
+  constructor(type) {
+    this.type = type;
+    this.packages = [];
+    this.initialize();
+  }
+
+  initialize() {
+    $("#del_finished").click(() => this.deleteFinished());
+    $("#restart_failed").click(() => this.restartFailed());
+    $("#pack_box .modal-content").resizable({
+      handles: "e,w",
+      minHeight: 420,
+      minWidth: 300
+    }).draggable({ scroll: false }).append(
+      '<div class="ui-resizable-handle ui-resizable-se ui-icon ui-icon-gripsmall-diagonal-se" style="cursor: default;"></div>'
+    );
+    this.parsePackages();
+  }
+
+  parsePackages() {
+    const $packageList = $("#package-list");
+    const lis = $packageList.children("li");
+    for (let i = 0, len = lis.length; i < len; i++) {
+      const ele = lis[i];
+      const id = parseInt(ele.id.match(/[0-9]+/)[0]);
+      this.packages.push(new Package(this, id, ele));
+    }
+
+    $packageList.sortable({
+      handle: ".progress",
+      axis: "y",
+      cursor: "grabbing",
+      start(event, ui) {
+        $(this).attr('data-previndex', ui.item.index());
+      },
+      stop(event, ui) {
+        const newIndex = ui.item.index();
+        const oldIndex = $(this).attr('data-previndex');
+        $(this).removeAttr('data-previndex');
+        if (newIndex === oldIndex) {
+          return false;
+        }
+        uiHandler.indicateLoad();
+        $.post({
+          url: "{{url_for('json.package_order')}}",
+          dataType: 'json',
+          contentType: 'application/json',
+          data: JSON.stringify({ pack_id: ui.item.data('pid'), pos: newIndex }),
+          success: () => {
+            uiHandler.indicateFinish();
+            return true;
+          }
+        }).fail(() => {
+          uiHandler.indicateFail();
+          return false;
+        });
+      }
+    });
+  }
+
+  deleteFinished() {
+    uiHandler.indicateLoad();
+    $.post("{{url_for('api.rpc', func='delete_finished')}}")
+      .done((data) => {
+        if (data.length > 0) {
+          window.location.assign(window.location.href.replace(/#.*$/, ''));
+        } else {
+          this.packages.forEach(pack => pack.close());
+        }
+        uiHandler.indicateSuccess();
+      })
+      .fail(() => {
+        uiHandler.indicateFail();
+      });
+  }
+
+  restartFailed() {
+    uiHandler.indicateLoad();
+    $.post("{{url_for('api.rpc', func='restart_failed')}}")
+      .done((data) => {
+        if (data.length > 0) {
+          this.packages.forEach(pack => pack.close());
+        }
+        uiHandler.indicateSuccess();
+      })
+      .fail(() => {
+        uiHandler.indicateFail();
+      });
+  }
+}
+
+class Package {
+  constructor(ui, id, ele) {
+    this.ui = ui;
+    this.id = id;
+    this.ele = ele;
+    this.linksLoaded = false;
+    this.initialize();
+  }
+
+  initialize() {
+    if (!this.ele) {
+      this.createElement();
+    } else {
+      jQuery.data(this.ele, "pid", this.id);
+      this.parseElement();
+    }
+
+    const pname = $(this.ele).find('.packagename');
+    this.buttons = $(this.ele).find('.buttons');
+    this.buttons.css("opacity", 0);
+
+    $(pname).hover(
+      () => this.buttons.fadeTo('fast', 1),
+      () => this.buttons.fadeTo('fast', 0)
+    );
+  }
+
+  createElement() {
+    alert("create");
+  }
+
+  parseElement() {
+    const imgs = $(this.ele).find('span');
+    this.name = $(this.ele).find('.name');
+    this.folder = $(this.ele).find('.folder');
+    this.password = $(this.ele).find('.password');
+
+    $(imgs[3]).click((e) => this.deletePackage(e));
+    $(imgs[4]).click((e) => this.restartPackage(e));
+    $(imgs[5]).click((e) => this.editPackage(e));
+    $(imgs[6]).click((e) => this.movePackage(e));
+    $(imgs[7]).click((e) => this.editOrder(e));
+    $(imgs[8]).click((e) => this.extractPackage(e));
+
+    $(this.ele).find('.packagename').click(() => this.toggle());
+  }
+
+  loadLinks() {
+    uiHandler.indicateLoad();
+    $.get({
+      url: "{{url_for('json.package')}}",
+      data: { id: this.id },
+      traditional: true
+    })
+      .done((data) => {
+        this.createLinks(data);
+      })
+      .fail(() => {
+        uiHandler.indicateFail();
+      });
+  }
+
+  createLinks(data) {
+    const $ul = $(`#sort_children_${this.id}`);
+    const nbsp = '\u00A0';
+    $ul.html("");
+    data.links.forEach(link => {
+      const $li = $("<li>").css("margin-left", 0).data("lid", link.fid);
+
+      const $firstRow = $('<div>').append(
+        // Icon
+        $('<span>', {
+          class: `child_status`
+        }).append(
+          $('<span>', {
+            class: this.getLinkIcon(link.status),
+            style: 'margin-right: 2px; color: #f9be03;'
+          })
+        ),
+        // Link
+        $('<span>', {
+          style: 'font-size: 16px; font-weight: bold;'
+        }).append(
+          $('<a>', {href: link.url}).text(link.name || '').click((e) => {e.preventDefault();})
+        )
+      );
+
+      const $secondRow = $('<div>', {
+        class: 'child_secrow',
+        style: 'margin-left: 21px; margin-bottom: 7px; border-radius: 4px;'
+      }).append(
+        // Status
+        $('<span>', {
+          class: 'child_status',
+          style: 'font-size: 12px; color:#eee; padding-left: 5px;'
+        }).text((link.statusmsg || '') + nbsp),
+        // Error
+        $('<span>').text((link.error || '') + nbsp),
+        // Size
+        $('<span>', {
+          class: 'child_status',
+          style: 'font-size: 12px; color:#eee;'
+        }).text(link.format_size || ''),
+        // Plugin
+        $('<span>', {
+          class: 'child_status',
+          style: 'font-size: 12px; color:#eee;'
+        }).text(` ${link.plugin || ''}${nbsp}${nbsp}`),
+        // Delete Button
+        $('<span>', {
+          class: 'glyphicon glyphicon-trash',
+          title: 'Delete Link',
+          style: 'cursor: pointer; font-size: 12px; color:#eee;'
+        }),
+        `${nbsp}${nbsp}`,
+        // Restart Button
+        $('<span>', {
+          class: 'glyphicon glyphicon-repeat',
+          title: 'Restart Link',
+          style: 'cursor: pointer; font-size: 12px; color:#eee;'
+        })
+      );
+
+      const $container = $('<div>')
+        .attr("id", `file_${link.fid}`)
+        .css({
+          "padding-left": "30px",
+          "cursor": "grab"
+        })
+        .addClass("child").append($firstRow, '<br>', $secondRow);
+
+      $li.append($container);
+      $ul.append($li);
+    });
+
+    this.registerLinkEvents();
+    this.linksLoaded = true;
+    uiHandler.indicateFinish();
+    this.toggle();
+  }
+
+  getLinkIcon(status) {
+    switch (status) {
+      case 0:
+        return 'glyphicon glyphicon-ok';
+      case 2:
+      case 3:
+      case 5:
+        return 'glyphicon glyphicon-time';
+      case 9:
+      case 1:
+        return 'glyphicon glyphicon-ban-circle';
+      case 8:
+        return 'glyphicon glyphicon-exclamation-sign';
+      case 4:
+        return 'glyphicon glyphicon-arrow-right';
+      case 11:
+      case 13:
+        return 'glyphicon glyphicon-cog';
+      default:
+        return 'glyphicon glyphicon-cloud-download';
+    }
+  }
+
+  registerLinkEvents() {
+    $(this.ele).on("click", ".children ul li .child_secrow span", (e) => {
+      const $span = $(e.currentTarget);
+      const index = $span.index();
+      const lid = $span.closest("li").find(".child").attr("id").match(/[0-9]+/);
+      if (index === 4) {
+        this.deleteLink(lid);
+      } else if (index === 5) {
+        this.restartLink(lid);
+      }
+    });
+
+    $(this.ele).find('.children').children('ul').sortable({
+      handle: ".child",
+      axis: "y",
+      cursor: "grabbing",
+      start(e, ui) {
+        $(this).attr('data-previndex', ui.item.index());
+      },
+      stop(event, ui) {
+        const newIndex = ui.item.index();
+        const oldIndex = $(this).attr('data-previndex');
+        $(this).removeAttr('data-previndex');
+        if (newIndex === oldIndex) {
+          return false;
+        }
+        uiHandler.indicateLoad();
+        $.post({
+          url: "{{url_for('json.link_order')}}",
+          dataType: 'json',
+          contentType: 'application/json',
+          data: JSON.stringify({ file_id: ui.item.data('lid'), pos: newIndex }),
+          success: () => {
+            uiHandler.indicateFinish();
+            return true;
+          }
+        }).fail(() => {
+          uiHandler.indicateFail();
+          return false;
+        });
+      }
+    });
+  }
+
+  deleteLink(lid) {
+    uiHandler.yesNoDialog("{{_('Are you sure you want to delete this link?')}}", (answer) => {
+      if (answer) {
+        uiHandler.indicateLoad();
+        $.post(`{{url_for('api.rpc', func='delete_files')}}/[${lid}]`)
+          .done(() => {
+            $(`#file_${lid}`).remove();
+            uiHandler.indicateFinish();
+          })
+          .fail(() => {
+            uiHandler.indicateFail();
+          });
+      }
+    });
+  }
+
+  restartLink(lid) {
+    $.post(`{{url_for('api.rpc', func='restart_file')}}/${lid}`)
+      .done(() => {
+        const ele1 = $(`#file_${lid}`);
+        const imgs1 = $(ele1).find(".glyphicon");
+        $(imgs1[0]).attr("class", "glyphicon glyphicon-time text-info");
+        const spans = $(ele1).find(".child_status");
+        $(spans[1]).html("{{_('queued')}}");
+        uiHandler.indicateSuccess();
+      })
+      .fail(() => {
+        uiHandler.indicateFail();
+      });
+  }
+
+  toggle() {
+    const icon = $(this.ele).find('.packageicon');
+    const child = $(this.ele).find('.children');
+    if (child.css('display') === "block") {
+      $(child).fadeOut();
+      icon.removeClass('glyphicon-folder-open');
+      icon.addClass('glyphicon-folder-close');
+    } else {
+      if (!this.linksLoaded) {
+        this.loadLinks();
+      } else {
+        $(child).fadeIn();
+      }
+      icon.removeClass('glyphicon-folder-close');
+      icon.addClass('glyphicon-folder-open');
+    }
+  }
+
+  deletePackage(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    uiHandler.yesNoDialog("{{_('Are you sure you want to delete this package?')}}", (answer) => {
+      if (answer) {
+        uiHandler.indicateLoad();
+        $.post(`{{url_for('api.rpc', func='delete_packages')}}/[${this.id}]`)
+          .done(() => {
+            $(this.ele).remove();
+            uiHandler.indicateFinish();
+          })
+          .fail(() => {
+            uiHandler.indicateFail();
+          });
+      }
+    });
+  }
+
+  restartPackage(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    uiHandler.indicateLoad();
+    $.post(`{{url_for('api.rpc', func='restart_package')}}/${this.id}`)
+      .done(() => {
+        this.close();
+        uiHandler.indicateSuccess();
+      })
+      .fail(() => {
+        uiHandler.indicateFail();
+      });
+  }
+
+  extractPackage(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    uiHandler.indicateLoad();
+    $.post(`{{url_for('api.rpc', func='service_call')}}/'ExtractArchive.extract_package', [${this.id}]`)
+      .done(() => {
+        this.close();
+        uiHandler.indicateSuccess();
+      })
+      .fail(() => {
+        uiHandler.indicateFail();
+      });
+  }
+
+  close() {
+    const child = $(this.ele).find('.children');
+    if (child.css('display') === "block") {
+      child.fadeOut();
+      const icon = $(this.ele).find('.packageicon');
+      icon.removeClass('glyphicon-folder-open');
+      icon.addClass('glyphicon-folder-close');
+    }
+    const ul = $(`#sort_children_${this.id}`);
+    ul.html("");
+    this.linksLoaded = false;
+  }
+
+  movePackage(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    uiHandler.indicateLoad();
+    $.post({
+      url: "{{url_for('json.move_package')}}",
+      dataType: 'json',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        pack_id: this.id,
+        dest: ((this.ui.type + 1) % 2)
+      }),
+    })
+      .done(() => {
+        $(this.ele).remove();
+        uiHandler.indicateFinish();
+      })
+      .fail(() => {
+        uiHandler.indicateFail();
+      });
+  }
+
+  editOrder(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    uiHandler.indicateLoad();
+    $.get({
+      url: "{{url_for('json.package')}}",
+      data: {id: this.id},
+      traditional: true
+    })
+      .done((data) => {
+        const length = data.links.length;
+        for (let i = 1; i <= length / 2; i++) {
+          $.post({
+            url: "{{url_for('json.link_order')}}",
+            dataType: 'json',
+            contentType: 'application/json',
+            data: JSON.stringify({
+              file_id: data.links[length - i].fid,
+              pos: i - 1
+            }),
+          }).fail(() => {
+            uiHandler.indicateFail();
+          });
+        }
+        uiHandler.indicateFinish();
+        this.close();
+      })
+      .fail(() => {
+        uiHandler.indicateFail();
+      });
+  }
+
+  editPackage(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    $("#pack_form").off("submit").submit((e) => this.savePackage(e));
+
+    $("#pack_id").val(this.id);
+    $("#pack_name").val(this.name.text());
+    $("#pack_folder").val(this.folder.text());
+    $("#pack_pwd").val(this.password.text());
+    $('#pack_box').modal('show');
+  }
+
+  savePackage(event) {
+    $.post({
+      url: "{{url_for('json.edit_package')}}",
+      dataType: 'json',
+      contentType: 'application/json',
+      data: JSON.stringify(formToObject('#pack_form'))
+    });
+    event.preventDefault();
+    this.name.text($("#pack_name").val());
+    this.folder.text($("#pack_folder").val());
+    this.password.text($("#pack_pwd").val());
+    $('#pack_box').modal('hide');
+  }
+}
+
+{% endautoescape %}

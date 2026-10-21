@@ -1,0 +1,173 @@
+from logging import getLogger
+
+from pyload import APPID
+
+from .http.http_download import HTTPDownload
+from .http.http_request import HTTPRequest
+
+
+class Browser:
+    def __init__(self, bucket=None, options=None):
+        self.log = getLogger(APPID)
+
+        self.options = options or {}  #: holds pycurl options
+        self.bucket = bucket
+
+        self.cj = None  #: needs to be set later
+        self.http = None
+        self._size = 0
+
+        self.renew_http_request()
+        self.dl = None
+
+    def renew_http_request(self):
+        try:
+            self.http.close()
+        except Exception:
+            pass
+        self.http = HTTPRequest(self.cj, self.options)
+
+    def set_last_url(self, val):
+        self.http.last_url = val
+
+    # tunnel some attributes from HTTP Request to Browser
+    last_effective_url = property(lambda self: self.http.last_effective_url)
+    last_url = property(lambda self: self.http.last_url, set_last_url)
+    code = property(lambda self: self.http.code)
+    cookie_jar = property(lambda self: self.cj)
+
+    def set_cookie_jar(self, cj):
+        self.cj = cj
+        self.http.cj = cj
+
+    @property
+    def speed(self):
+        return 0 if not self.dl else self.dl.speed
+
+    @property
+    def size(self):
+        if self._size:
+            return self._size
+        if self.dl:
+            return self.dl.size
+        return 0
+
+    @property
+    def arrived(self):
+        return 0 if not self.dl else self.dl.arrived
+
+    @property
+    def percent(self):
+        return 0 if not self.size else (self.arrived * 100) // self.size
+
+    def clear_cookies(self):
+        if self.cj:
+            self.cj.clear()
+        self.http.clear_cookies()
+
+    def clear_referer(self):
+        self.http.last_url = None
+
+    def abort_downloads(self):
+        self.http.abort = True
+        if self.dl:
+            self._size = self.dl.size
+            self.dl.abort = True
+
+    def http_download(
+            self,
+            url,
+            filename,
+            size=0,
+            get=None,
+            post=None,
+            referrer=True,
+            cookies=True,
+            chunks=1,
+            resume=False,
+            status_notify=None,
+            disposition=False,
+    ):
+        """
+        this can also download ftp.
+        """
+        self._size = 0
+        self.dl = HTTPDownload(
+            url,
+            filename,
+            size=size,
+            get=get,
+            post=post,
+            referer=self.last_effective_url if referrer else None,
+            cj=self.cj if cookies else None,
+            bucket=self.bucket,
+            options=self.options,
+            status_notify=status_notify,
+            disposition=disposition,
+        )
+        name = self.dl.download(chunks, resume)
+        self.http.code = self.dl.code
+        self._size = self.dl.size
+
+        self.dl = None
+
+        return name
+
+    def load(self, *args, **kwargs):
+        """
+        retrieves page.
+        """
+        return self.http.load(*args, **kwargs)
+
+    def upload(self, *args, **kwargs):
+        """
+        perform upload.
+        """
+        return self.http.upload(*args, **kwargs)
+
+    def put_header(self, name, value):
+        """
+        add a header to the request.
+        """
+        self.http.put_header(name, value)
+
+    def remove_header(self, name, value=b""):
+        """
+        remove a header from the request.
+        """
+        self.http.remove_header(name, value)
+
+    def add_auth(self, pwd):
+        """
+        Adds user and pw for http auth.
+
+        :param pwd: string, user:password
+        """
+        self.http.add_auth(pwd)
+
+    def remove_auth(self):
+        self.http.remove_auth()
+
+    def set_option(self, name, value):
+        """
+        Adds an option to the request, see HTTPRequest for existing ones.
+        """
+        self.options[name] = value
+
+    def delete_option(self, name):
+        self.options.pop(name, None)
+
+    def clear_headers(self):
+        self.http.clear_headers()
+
+    def close(self):
+        """
+        cleanup.
+        """
+        if hasattr(self, "http"):
+            self.http.close()
+            del self.http
+        if hasattr(self, "dl"):
+            del self.dl
+        if hasattr(self, "cj"):
+            del self.cj

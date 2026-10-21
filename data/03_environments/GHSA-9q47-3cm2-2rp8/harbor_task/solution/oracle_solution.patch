@@ -1,0 +1,164 @@
+diff --git a/src/pyload/core/config/default.cfg b/src/pyload/core/config/default.cfg
+index 2dfcde2a401db3bbdbb9debeef9a118cfd75b778..32cc9272d5a5d7711b6fbe0d9cc54c23acf04258 100644
+--- a/src/pyload/core/config/default.cfg
++++ b/src/pyload/core/config/default.cfg
+@@ -45,6 +45,7 @@ webui - "Web Interface":
+     bool autologin : "Skip login if single user" = False
+     str prefix: "Path prefix" =
+     int session_lifetime : "Session lifetime (minutes)" = 44640
++    int trusted_proxies : "Trusted proxy hops for client IP (reverse proxy only)" = 0
+     bool allow_iframe : "Allow embedding in iframe" = False
+ proxy - "Proxy":
+     bool enabled : "Activated" = False
+diff --git a/src/pyload/webui/app/__init__.py b/src/pyload/webui/app/__init__.py
+index 16daf751cc172589509ccececa6a86f61a10db8d..f94846d91e8025e9ff7fd9ccc04e323d51a7c23f 100644
+--- a/src/pyload/webui/app/__init__.py
++++ b/src/pyload/webui/app/__init__.py
+@@ -11,6 +11,7 @@ import os
+ 
+ import flask
+ import jinja2
++from werkzeug.middleware.proxy_fix import ProxyFix
+ from werkzeug.serving import WSGIRequestHandler
+ 
+ from .blueprints import BLUEPRINTS
+@@ -138,6 +139,14 @@ class App:
+     def _configure_api(cls, app, pycore):
+         app.config["PYLOAD_API"] = pycore.api
+ 
++    @classmethod
++    def _configure_proxy_fix(cls, app, trusted_proxy_count):
++        if trusted_proxy_count < 0:
++            raise ValueError("Trusted proxy count must not be negative")
++
++        if trusted_proxy_count:
++            app.wsgi_app = ProxyFix(app.wsgi_app, x_for=trusted_proxy_count)
++
+     @classmethod
+     def _configure_logging(cls, app, pycore):
+         # Inject our custom logger
+@@ -149,6 +158,7 @@ class App:
+         cls._configure_logging(app, pycore)
+         cls._configure_api(app, pycore)
+         cls._configure_config(app, develop)
++        cls._configure_proxy_fix(app, pycore.config.get("webui", "trusted_proxies"))
+         cls._configure_templating(app)
+         cls._configure_json_encoding(app)
+         cls._configure_session(app, path_prefix or r"/")
+diff --git a/src/pyload/webui/app/blueprints/app_blueprint.py b/src/pyload/webui/app/blueprints/app_blueprint.py
+index 92ba2fa36e7ebf41f08d213223d8373828cd23c7..4fca963f023248354ac7f0509b9514e82015a4e3 100644
+--- a/src/pyload/webui/app/blueprints/app_blueprint.py
++++ b/src/pyload/webui/app/blueprints/app_blueprint.py
+@@ -13,9 +13,19 @@ import flask
+ from pyload import APPID, PKGDIR
+ from pyload.core.utils import format, fs
+ 
+-from ..helpers import (clear_session, get_permission, get_redirect_url,
+-                       is_authenticated, login_required, permlist, render_base,
+-                       render_template, set_session, static_file_url)
++from ..helpers import (
++    clear_session,
++    get_client_ip,
++    get_permission,
++    get_redirect_url,
++    is_authenticated,
++    login_required,
++    permlist,
++    render_base,
++    render_template,
++    set_session,
++    static_file_url,
++)
+ 
+ _RE_LOGLINE = re.compile(r"\[([\d\-]+) ([\d:]+)\] +([A-Z]+) +(.+?) (.*)")
+ 
+@@ -83,7 +93,7 @@ def login():
+         password = flask.request.form["password"]
+         user_info = api.check_auth(user, password)
+ 
+-        client_ip = flask.request.headers.get("X-Forwarded-For", "").split(',')[0].strip() or flask.request.remote_addr
++        client_ip = get_client_ip()
+ 
+         sanitized_user = user.replace("\n", "\\n").replace("\r", "\\r")
+         if not user_info:
+diff --git a/src/pyload/webui/app/blueprints/cnl_blueprint.py b/src/pyload/webui/app/blueprints/cnl_blueprint.py
+index 40494d206b768f4e97232018214e2b94cc3ff487..210024e5892e9652e85ec0570a913e91bba88503 100644
+--- a/src/pyload/webui/app/blueprints/cnl_blueprint.py
++++ b/src/pyload/webui/app/blueprints/cnl_blueprint.py
+@@ -14,7 +14,7 @@ from pyload.core.api import Destination
+ from pyload.core.utils.convert import to_str
+ from pyload.core.utils.misc import eval_js
+ 
+-from ..helpers import config_check, csrf_exempt, is_loopback_request
++from ..helpers import config_check, csrf_exempt, get_client_ip, is_loopback_request
+ 
+ #: url_prefix here is intentional since it should not be affected by path prefix
+ bp = flask.Blueprint("flash", __name__, url_prefix="/")
+@@ -22,6 +22,7 @@ bp = flask.Blueprint("flash", __name__, url_prefix="/")
+ 
+ #: decorators
+ def local_check(func):
++    """Restrict Click'N'Load endpoints to requests from the local machine."""
+     @wraps(func)
+     def wrapper(*args, **kwargs):
+         http_host = flask.request.environ.get("HTTP_HOST")
+@@ -30,7 +31,7 @@ def local_check(func):
+                 "127.0.0.1:9666",
+                 "[::1]:9666",
+         ):
+-            remote_addr = flask.request.environ.get("REMOTE_ADDR")
++            remote_addr = get_client_ip(ignore_proxyfix=True)
+             local_addr = g.get("web_addr")
+             if local_addr == remote_addr:
+                 return func(*args, **kwargs)
+diff --git a/src/pyload/webui/app/helpers.py b/src/pyload/webui/app/helpers.py
+index 427453c9ab6ad848b7371cf1aaff5e925a677ffd..87a9161428a0c555d65253ca3ef3a7ff6553dc04 100644
+--- a/src/pyload/webui/app/helpers.py
++++ b/src/pyload/webui/app/helpers.py
+@@ -296,11 +296,19 @@ def is_loopback_request(request=flask.request, check_source=True):
+         ):
+             return False
+ 
+-    remote_addr = request.remote_addr
+-    if not remote_addr:
+-        return False
++    return is_loopback_address(get_client_ip(request, ignore_proxyfix=True))
++
++
++def get_client_ip(request=flask.request, ignore_proxyfix=False):
++    remote_addr = request.remote_addr or "unknown"
++
++    if ignore_proxyfix:
++        # Return the TCP peer address before any trusted-proxy middleware rewrites it.
++        proxy_fix_original = request.environ.get("werkzeug.proxy_fix.orig", {})
++        return proxy_fix_original.get("REMOTE_ADDR", remote_addr)
+ 
+-    return is_loopback_address(remote_addr)
++    # Return the peer address resolved by the configured trusted-proxy middleware.
++    return remote_addr
+ 
+ 
+ def login_required(perm):
+@@ -356,8 +364,7 @@ def apikey_auth(func):
+         api = flask.current_app.config["PYLOAD_API"]
+         log = flask.current_app.logger
+ 
+-        # Get client IP, safely handling X-Forwarded-For
+-        client_ip = flask.request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or flask.request.remote_addr
++        client_ip = get_client_ip()
+ 
+         # Check for API key in header
+         api_key = flask.request.headers.get("X-API-Key", None)
+@@ -445,11 +452,7 @@ def rate_limit(count=100, period=60):
+ 
+         @wraps(func)
+         def wrapper(*args, **kwargs):
+-            # Get client IP, handling X-Forwarded-For for proxies
+-            client_ip = flask.request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or flask.request.remote_addr
+-            if not client_ip:
+-                # If we can't determine IP, allow the request (fail open)
+-                return func(*args, **kwargs)
++            client_ip = get_client_ip()
+ 
+             current_time = time.time()
+             cutoff_time = current_time - period

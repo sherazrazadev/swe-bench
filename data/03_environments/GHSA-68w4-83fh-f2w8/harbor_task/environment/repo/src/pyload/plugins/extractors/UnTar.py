@@ -1,0 +1,106 @@
+import os
+import sys
+import tarfile
+
+from pyload.core.utils.fs import is_within_directory, safejoin
+from pyload.plugins.base.extractor import ArchiveError, BaseExtractor, CRCError
+
+
+class UnTar(BaseExtractor):
+    __name__ = "UnTar"
+    __type__ = "extractor"
+    __version__ = "0.09"
+    __status__ = "stable"
+
+    __description__ = """TAR extractor plugin"""
+    __license__ = "GPLv3"
+    __authors__ = [
+        ("Walter Purcaro", "vuolter@gmail.com"),
+        ("GammaC0de", "nitzo2001[AT]yahoo[DOT]com"),
+    ]
+
+    VERSION = "{}.{}.{}".format(
+        sys.version_info[0], sys.version_info[1], sys.version_info[2]
+    )
+
+    @classmethod
+    def archivetype(cls, filename):
+        return "tar" if cls.isarchive(filename) else None
+
+    @classmethod
+    def isarchive(cls, filename):
+        fsname = os.fsdecode(filename)
+        try:
+            if tarfile.is_tarfile(fsname):
+                with tarfile.open(fsname) as tf:
+                    return len(tf.getmembers()) > 0
+            return False
+        except IOError:
+            return False
+
+    @classmethod
+    def find(cls):
+        return sys.version_info[:2] >= (2, 5)
+
+    def list(self, password=None):
+        with tarfile.open(self.filename) as t:
+            self.files = [safejoin(self.dest, _f) for _f in t.getnames()]
+        return self.files
+
+    def verify(self, password=None):
+        try:
+            t = tarfile.open(self.filename, errorlevel=1)
+
+        except tarfile.CompressionError as exc:
+            raise CRCError(exc)
+
+        except (OSError, tarfile.TarError) as exc:
+            raise ArchiveError(exc)
+
+        else:
+            t.close()
+
+    def _safe_extractall(self, tar, path=".", members=None, *, numeric_owner=False):
+        """
+        Safely extract TAR members with validation for path traversal and symlink escapes.
+
+        :param tar: tarfile.TarFile object
+        :param path: Destination directory
+        :param members: List of members to extract (None = all)
+        :param numeric_owner: Whether to use numeric owner IDs
+        """
+        for member in tar.getmembers():
+            member_path = os.path.join(path, member.name)
+            if not is_within_directory(path, member_path):
+                raise ArchiveError("Attempted Path Traversal in Tar File (CVE-2007-4559)")
+            if member.isdev():
+                raise ArchiveError("Device files are not allowed in TAR archives.")
+
+            # Validate symlink targets to prevent symlink escape attacks
+            if member.issym() or member.islnk():
+                link_target = member.linkname
+                self._validate_symlink_target(member.name, link_target, path)
+
+        tar.extractall(path, members, numeric_owner=numeric_owner)
+
+    def extract(self, password=None):
+        self.verify(password)
+
+        try:
+            with tarfile.open(self.filename, errorlevel=2) as t:
+                # Validate file list BEFORE extraction to prevent path traversal
+                members = t.getmembers()
+                self._validate_archive_entries([m.name for m in members])
+
+                self._safe_extractall(t, self.dest)
+                self.files = t.getnames()
+            return self.files
+
+        except tarfile.ExtractError as exc:
+            self.log_warning(exc)
+
+        except tarfile.CompressionError as exc:
+            raise CRCError(exc)
+
+        except (OSError, tarfile.TarError) as exc:
+            raise ArchiveError(exc)

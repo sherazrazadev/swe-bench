@@ -1,0 +1,33 @@
+schema_version = "1.1"
+
+[task]
+name = "cwe-bench/ghsa-24ch-f2g6-9hhh"
+description = "Fix a security vulnerability (CWE-674)"
+keywords = ["security", "code-vulnerability", "common-weakness-enumeration", "cwe-674"]
+
+[metadata]
+category = "security"
+difficulty = "hard"
+tags = ["security", "npm", "cwe-674"]
+cwe_ids = ["CWE-674"]
+language = "javascript"
+repo = "https://github.com/mcollina/msgpack5"
+source = "mined:ghsa+osv"
+entry_point = "Untrusted bytes passed to the public API require('msgpack5')().decode(buffer) or written into the object-mode stream returned by require('msgpack5')().decoder()"
+
+[agent]
+timeout_sec = 7200.0
+
+[verifier]
+timeout_sec = 2700.0
+environment_mode = "separate"
+
+[[verifier.collect]]
+command = "bash -c 'mkdir -p /logs/artifacts; cd /app || exit 0\nG=\"git -c safe.directory=/app\"\nBASE=$(cat /etc/.cwe_image_commit 2>/dev/null || $G rev-parse HEAD 2>/dev/null)\n$G add -A -- . '\"'\"':!node_modules'\"'\"' '\"'\"':!**/node_modules'\"'\"' >/dev/null 2>&1   # rc 1 only means \"some paths are ignored\"\nif $G diff --cached --binary --no-renames \"$BASE\" > /logs/artifacts/agent.patch \\\n   && $G diff --cached --name-status --no-renames \"$BASE\" > /logs/artifacts/agent_changes.txt; then :\nelse echo \"could not diff /app against the image state (git missing or .git damaged)\" > /logs/artifacts/collect_error.txt; fi\n$G reset -q >/dev/null 2>&1\nfind / -xdev \\( -path /proc -o -path /sys -o -path /dev -o -path /app -o -path /logs -o -path /tests -o -path /tmp \\\n    -o -path /var/tmp -o -path /root -o -path /home -o -path /run -o -path /var/log -o -path /var/cache \\\n    -o -path /var/lib/apt -o -path /var/lib/dpkg -o -name __pycache__ \\) -prune \\\n    -o -type f -newer /etc/.cwe_image_built ! -name '\"'\"'*.pyc'\"'\"' -print 2>/dev/null | head -500 > /logs/artifacts/outside_changes.txt\n[ -d /app/node_modules ] && find /app/node_modules \\( -name .cache -o -name '\"'\"'.vite*'\"'\"' -o -name .vitest \\) -prune \\\n    -o -type f -newer /etc/.cwe_image_built -print 2>/dev/null | head -200 > /logs/artifacts/dependency_changes.txt\nexit 0'"
+timeout_sec = 300.0
+
+[environment]
+build_timeout_sec = 1200.0
+cpus = 2
+memory_mb = 3072
+storage_mb = 10240

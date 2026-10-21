@@ -1,0 +1,35 @@
+site_name: HTTPCore 2
+site_description: A minimal HTTP client for Python.
+
+repo_name: pydantic/httpx2
+repo_url: https://github.com/pydantic/httpx2/
+
+nav:
+    - Introduction: 'index.md'
+    - Quickstart: 'quickstart.md'
+    - Connection Pools: 'connection-pools.md'
+    - Proxies: 'proxies.md'
+    - HTTP/2: 'http2.md'
+    - Async Support: 'async.md'
+    - Network Backends: 'network-backends.md'
+    - Extensions: 'extensions.md'
+    - Logging: 'logging.md'
+    - Exceptions: 'exceptions.md'
+
+theme:
+  name: "material"
+
+plugins:
+    - search
+    - mkdocstrings:
+        default_handler: python
+        watch:
+            - httpcore2
+        handlers:
+            python:
+                members_order:
+                    - "source"
+
+markdown_extensions:
+  - codehilite:
+      css_class: highlight

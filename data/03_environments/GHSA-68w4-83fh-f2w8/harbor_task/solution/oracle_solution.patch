@@ -1,0 +1,54 @@
+diff --git a/src/pyload/core/api/__init__.py b/src/pyload/core/api/__init__.py
+index bd970c28a43fefa9a12f8b0eb996a5e8276da5e4..2c421dcec9712bb52d2ffb183e63c8913409e78a 100644
+--- a/src/pyload/core/api/__init__.py
++++ b/src/pyload/core/api/__init__.py
+@@ -259,12 +259,13 @@ class Api:
+             ("proxy", "type"),
+             ("proxy", "username"),
+             ("reconnect", "script"),
++            ("webui", "allow_iframe"),
+             ("webui", "host"),
+             ("webui", "ssl_certfile"),
+             ("webui", "ssl_keyfile"),
+             ("webui", "ssl_certchain"),
++            ("webui", "trusted_proxies"),
+             ("webui", "use_ssl"),
+-            ("webui", "allow_iframe"),
+         }
+ 
+         ADMIN_ONLY_PLUGIN_OPTIONS = {
+@@ -1451,7 +1452,6 @@ class Api:
+         return os.path.realpath(self.pyload.tempdir)
+ 
+     #: Old API
+-    @permission(Perms.ANY)
+     @get
+     def getUserData(self, username: str, password: str) -> OldUserData:
+         """
+@@ -1469,7 +1469,6 @@ class Api:
+         else:
+             return OldUserData()
+ 
+-    @permission(Perms.ANY)
+     @get
+     def get_userdata(self, username: str, password: str) -> UserData:
+         """
+diff --git a/src/pyload/core/database/user_database.py b/src/pyload/core/database/user_database.py
+index 9f088d98a42e4dab8bb9e476d02ec642f8702bcd..22a67f443b2650da630b719f391d9c5712a291c5 100644
+--- a/src/pyload/core/database/user_database.py
++++ b/src/pyload/core/database/user_database.py
+@@ -1,3 +1,4 @@
++import hmac  # Only imported for its secure string comparison function
+ import os
+ 
+ from cryptography.hazmat.primitives import hashes
+@@ -58,7 +59,8 @@ def _check_password(hashed, clear):
+     salt = hashed[:32]
+     to_compare = _salted_password(clear, salt)
+ 
+-    return hashed == to_compare
++    # CRITICAL: Always use compare_digest instead of `==` to prevent timing attacks!
++    return hmac.compare_digest(hashed, to_compare)
+ 
+ 
+ class UserDatabaseMethods:

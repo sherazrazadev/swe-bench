@@ -1,0 +1,805 @@
+{% autoescape true %}
+// Set up CSRF token for all AJAX requests
+const getCsrfToken = () => document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+// Add CSRF token to all jQuery AJAX requests
+$.ajaxSetup({
+  beforeSend: function (xhr, settings) {
+    if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
+      xhr.setRequestHeader("X-CSRFToken", getCsrfToken());
+    }
+  }
+});
+
+class NotificationHandler {
+  constructor() {
+    this.enabled = false;
+    this.checkPermission();
+  }
+
+  checkPermission() {
+    if ("Notification" in window) {
+      if (Notification.permission === 'granted') {
+        this.enabled = true;
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(result => {
+          this.enabled = (result === 'granted');
+        });
+      }
+    }
+  }
+
+  showNotification(title, options, callback) {
+    if (this.enabled) {
+      const notification = new Notification(title, options);
+      if (callback) {
+        notification.onclick = callback;
+      }
+      setTimeout(() => {
+        notification.close();
+      }, options.duration || 8000);
+      return notification;
+    }
+    return null;
+  }
+}
+
+let notificationHandler = new NotificationHandler();
+
+class CaptchaHandler {
+  constructor() {
+    this._interactiveCaptchaActive = false;
+  }
+
+  iframeLoaded = (event) => {
+    const interactionData = event.data;
+    if (this._interactiveCaptchaActive) {
+      const requestMessage = {
+        actionCode: this.actionCodes.activate,
+        params: interactionData.params
+      };
+      $("#cap_interactive_iframe").get(0).contentWindow.postMessage(JSON.stringify(requestMessage), "*");
+    }
+  }
+
+  windowEventListener = (event) => {
+    let requestMessage;
+    try {
+      requestMessage = JSON.parse(event.originalEvent.data);
+    } catch (e) {
+      if (e instanceof SyntaxError) {
+        return;
+      } else {
+        console.error(e);
+      }
+    }
+    const interactionData = event.data;
+    if (requestMessage.actionCode === this.actionCodes.submitResponse) {
+      this.submitInteractiveCaptcha(requestMessage.params.response);
+      this.clearEventlisteners();
+    } else if (requestMessage.actionCode === this.actionCodes.activated) {
+      $(`#${interactionData.infoId}`).css("display", "none");
+      $("#cap_interactive_iframe").css("display", "block");
+    } else if (requestMessage.actionCode === this.actionCodes.size) {
+      const $iframe = $("#cap_interactive_iframe");
+      const width = requestMessage.params.rect.right - requestMessage.params.rect.left;
+      const height = requestMessage.params.rect.bottom - requestMessage.params.rect.top;
+      $iframe.css({ top: -requestMessage.params.rect.top + "px", left: -requestMessage.params.rect.left + "px" })
+        .parent().width(width).height(height);
+    }
+  }
+
+  clearEventlisteners = () => {
+    this._interactiveCaptchaActive = false;
+    $("#cap_interactive_iframe").off("load", this.iframeLoaded);
+    $(window).off('message', this.windowEventListener);
+  }
+
+  startInteraction = (interactionData) => {
+    $(`#${interactionData.infoId}`).css("display", "block");
+    $("#cap_interactive_iframe").on("load", interactionData, this.iframeLoaded);
+    $(window).on('message', interactionData, this.windowEventListener);
+    if (interactionData.params.url !== undefined && interactionData.params.url.indexOf("http") === 0) {
+      $("#cap_interactive").css("display", "block");
+      this._interactiveCaptchaActive = true;
+      $("#cap_interactive_iframe").attr("src", interactionData.params.url);
+    }
+  }
+
+  actionCodes = {
+    activate: "pyloadActivateInteractive",
+    activated: "pyloadActivatedInteractive",
+    size: "pyloadIframeSize",
+    submitResponse: "pyloadSubmitResponse"
+  }
+
+  setCaptcha = (captchaData) => {
+    this.captchaResetDefault();
+
+    $("#cap_id").val(captchaData.id);
+    if (captchaData.result_type === "textual") {
+      $("#cap_textual_img").attr("src", captchaData.params.src);
+      $("#cap_submit").css("display", "inline");
+      $("#cap_box #cap_title").text("");
+      $("#cap_textual").css("display", "block");
+      $("#cap_result").focus();
+    } else if (captchaData.result_type === "positional") {
+      $("#cap_positional_img").attr("src", captchaData.params.src);
+      $("#cap_box #cap_title").text("{{_('Please click on the right captcha position.')}}");
+      $("#cap_positional").css("display", "block");
+    } else if (captchaData.result_type === "interactive" || captchaData.result_type === "invisible") {
+      $("#cap_box #cap_title").text("");
+      const infoId = captchaData.result_type === "interactive" ? "cap_interactive_loading" : "cap_invisible_loading"
+      const interactionData = {
+        infoId: infoId,
+        params: captchaData.params
+      }
+      this.startInteraction(interactionData);
+    }
+    return true;
+  }
+
+  loadCaptcha = (method, data) => {
+    $.ajax({
+      url: "{{url_for('json.set_captcha')}}",
+      method: method,
+      data: data,
+      success: (response) => (response.captcha ? this.setCaptcha(response) : this.clearCaptcha())
+    });
+  }
+
+  captchaResetDefault = () => {
+    $("#cap_textual").css("display", "none");
+    $("#cap_textual_img").attr("src", "");
+    $("#cap_positional").css("display", "none");
+    $("#cap_positional_img").attr("src", "");
+    $("#cap_interactive").css("display", "none");
+    $("#cap_submit").css("display", "none");
+    $("#cap_interactive_iframe").attr("src", "").css({ display: "none", top: "", left: "" })
+      .parent().css({ height: "", width: "" });
+    $("#cap_interactive_loading").css("display", "none");
+    $("#cap_invisible_loading").css("display", "none");
+    this.clearEventlisteners();
+    return true;
+  }
+
+  clearCaptcha = () => {
+    this.captchaResetDefault();
+    $('#cap_box').modal('hide');
+    return true;
+  }
+
+  submitCaptcha = () => {
+    const $cap_result = $("#cap_result");
+    this.loadCaptcha("post", `cap_id=${$("#cap_id").val()}&cap_result=${$cap_result.val()}`);
+    $cap_result.val("");
+    return false;
+  }
+
+  submitPositionalCaptcha = (event) => {
+    const x = (event.pageX - $(event.target).offset().left).toFixed(0);
+    const y = (event.pageY - $(event.target).offset().top).toFixed(0);
+    $("#cap_box #cap_result").val(`${x} , ${y}`);
+    return this.submitCaptcha();
+  }
+
+  submitInteractiveCaptcha = (data) => {
+    if (data.constructor === {}.constructor)
+      data = JSON.stringify(data);
+    else if (data.constructor !== "".constructor)
+      return;
+
+    $("#cap_box #cap_result").val(data);
+    return this.submitCaptcha();
+  }
+}
+
+var captchaHandler = new CaptchaHandler();
+const thisScript = document.currentScript;
+
+class UIHandler {
+  constructor() {
+    this.topbuttonVisible = $(window).scrollTop() > 100;
+  }
+
+  initUI() {
+    const $goto_top = $('#goto_top');
+    const $stickyNav = $("#sticky-nav");
+    const navHeight = $('#head-panel').height();
+
+    $goto_top.toggleClass('hidden', !this.topbuttonVisible).affix({ offset: { top: 100 } });
+    const navCss = this.stickynavlCss($(window).scrollTop(), navHeight);
+    const modalTop = navHeight + parseFloat((navCss.top || `${-navHeight}`.replace('px', ''))) + 5;
+    $(".modal .modal-dialog").css({ top: `${modalTop}px` });
+    $stickyNav.css(navCss);
+
+    const addlinksMinHeight = getScrollBarHeight() + Math.round(parseFloat($("#add_links").css("line-height").replace('px', '')));
+    let addlinksHeight;
+    $("#add_box .modal-content").resizable({
+      minHeight: 520 + addlinksMinHeight,
+      minWidth: 310,
+      start: (event, ui) => {
+        addlinksHeight = $("#add_links").height();
+      },
+      resize: (event, ui) => {
+        const addlinksNewHeight = Math.max(addlinksHeight + ui.size.height - ui.originalSize.height, addlinksMinHeight);
+        $("#add_links").height(addlinksNewHeight);
+      }
+    }).draggable({ scroll: false });
+
+    $(window).scroll(() => this.handleScroll($goto_top, $stickyNav, navHeight));
+    $goto_top.click(() => this.scrollToTop());
+    this.initPasswordReveal();
+    this.initButtonHandlers();
+    this.initContainerDragAndDrop();
+    this.initFaviconBadge();
+  }
+
+  initFaviconBadge() {
+    const faviconNormal = "{{theme_static('img/favicon.ico')}}";
+    let faviconBadge = null;
+    const faviconDomElement = document.getElementById('app-favicon');
+    const faviconImage = new Image();
+    faviconImage.src = faviconNormal;
+
+    let previousCaptchaState = true;
+    let isTabActive = true;
+    let isBadgeVisible = false;
+
+    const drawFaviconBadge = () => {
+      const size = 128;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const dotRadius = Math.max(10, Math.round(size * 0.20));
+      const x = size - dotRadius - 6;
+      const y = size - dotRadius - 6;
+
+      ctx.clearRect(0, 0, size, size);
+      ctx.drawImage(faviconImage, 0, 0, size, size);
+      ctx.fillStyle = '#d9534f';
+      ctx.strokeStyle = '#8b3a36';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      return canvas.toDataURL('image/png');
+    };
+
+    this.updateFaviconBadge = (showBadge) => {
+      const isNewCaptcha = !previousCaptchaState && showBadge;
+      previousCaptchaState = showBadge;
+
+      if (!faviconDomElement) return;
+
+      if (isTabActive) {
+        if (isBadgeVisible) {
+          faviconDomElement.href = faviconNormal;
+          isBadgeVisible = false;
+        }
+        return;
+      }
+
+      if (isNewCaptcha) {
+        // Image not ready yet, defer drawing the badge until it's loaded
+        if (!faviconImage.complete || faviconImage.naturalWidth === 0) {
+          faviconImage.onload = () => this.updateFaviconBadge(showBadge);
+          return;
+        }
+
+        if (!faviconBadge) {
+          faviconBadge = drawFaviconBadge();
+        }
+        faviconDomElement.href = faviconBadge;
+        isBadgeVisible = true;
+      }
+    };
+
+    const setTabActive = (active) => {
+      if (isTabActive === active) return;
+      isTabActive = active;
+      this.updateFaviconBadge(previousCaptchaState);
+    };
+
+    $(window).on('focus', () => setTabActive(true));
+    $(window).on('blur',  () => setTabActive(false));
+    $(document).on('visibilitychange', () => setTabActive(!document.hidden));
+  }
+
+  initContainerDragAndDrop() {
+    const allowedExts = ["ccf", "dlc", "rsdf", "torrent", "txt"];
+    const $overlay = $(
+      '<div id="container_drop_overlay">' +
+      '<div class="container_drop_overlay_message" style="color: #fff">' +
+      "{{_('Drop container file to add to queue')}}" +
+      "</div>" +
+      "</div>"
+    ).css({
+      display: "block",
+      position: "fixed",
+      top: 0, left: 0, right: 0, bottom: 0,
+      opacity: 0,
+      transition: "opacity 0.25s ease-in-out",
+      background: "rgba(23, 84, 31, 0.8)",
+      "z-index": 100012,
+      pointerEvents: "none",
+      textAlign: "center",
+      color: "#fff",
+      textShadow: "0 2px 4px rgba(0,0,0,0.6)",
+      fontSize: "2em",
+      lineHeight: "100vh"
+    }).appendTo("body");
+
+    let dragDepth = 0;
+    const hasFiles = (dt) => dt && Array.from(dt.types || []).indexOf("Files") !== -1;
+
+    $(window).on("dragenter.containerdrop", (event) => {
+      if (!hasFiles(event.originalEvent.dataTransfer)) return;
+      if (dragDepth++ === 0) $overlay.css("opacity", 1);
+    });
+    $(window).on("dragleave.containerdrop", () => {
+      if (--dragDepth <= 0) {
+        dragDepth = 0;
+        $overlay.css("opacity", 0);
+      }
+    });
+    $(window).on("dragover.containerdrop", (event) => {
+      if (hasFiles(event.originalEvent.dataTransfer)) {
+        event.preventDefault();
+      }
+    });
+    $(window).on("drop.containerdrop", (event) => {
+      const dt = event.originalEvent.dataTransfer;
+      if (!hasFiles(dt)) return;
+      event.preventDefault();
+      dragDepth = 0;
+      $overlay.css("opacity", 0);
+      const files = Array.from(dt.files || []);
+      if (files.length === 0) return;
+      files.forEach((file) => this.uploadDroppedContainer(file, allowedExts));
+    });
+  }
+
+  uploadDroppedContainer(file, allowedExts) {
+    const ext = file.name.split(".").pop().toLowerCase();
+    if (allowedExts.indexOf(ext) === -1) {
+      this.indicateFail("{{_('Unsupported container type')}}" + ": " + ext);
+      return;
+    }
+    const formData = new FormData();
+    formData.append("add_file", file);
+    formData.append("add_name", "");
+    formData.append("add_dest", "1");
+    formData.append("add_links", "");
+
+    this.indicateLoad();
+    $.post({
+      url: "{{url_for('json.add_package')}}",
+      data: formData,
+      processData: false,
+      contentType: false,
+      success: () => {
+        this.indicateSuccess("{{_('Container added to queue')}}");
+        const re = /\/queue\/?$/i;
+        if (window.location.toString().match(re)) {
+          window.location.assign(window.location.href.replace(/#.*$/, ""));
+        }
+      },
+      error: () => {
+        this.indicateFail("{{_('Upload failed')}}");
+      }
+    });
+  }
+
+  handleScroll($goto_top, $stickyNav, navHeight) {
+    const scrollTop = $(window).scrollTop();
+    const visible = Boolean(scrollTop > 100);
+
+    if (this.topbuttonVisible !== visible) {
+      $goto_top.toggleClass('hidden', !visible);
+      this.topbuttonVisible = visible;
+    }
+    const navCss = this.stickynavlCss(scrollTop, navHeight);
+    const modalTop = navHeight + parseFloat((navCss.top || `${-navHeight}`).replace('px', '')) + 5;
+    $(".modal .modal-dialog").css({ top: `${modalTop}px` });
+    $stickyNav.css(navCss);
+  }
+
+  stickynavlCss(scrollTop, navHeight) {
+    if (scrollTop <= navHeight) {
+      return { "display": "none" };
+    } else if (scrollTop > navHeight && scrollTop < navHeight * 2) {
+      return { "display": "block", "top": `${scrollTop - navHeight * 2}px` };
+    } else {
+      return { "display": "block", "top": "0" };
+    }
+  }
+
+  initPasswordReveal() {
+    $('input[type=password].reveal-pass').map(function () {
+      const reveal_id = Date.now();
+
+      $(this).wrap("<div class=\"form-group has-feedback\"></div>");
+      const button = $("<button class='close form-control-feedback hidden' type='button' tabindex='-1' style='pointer-events: auto;'><span class='glyphicon glyphicon-eye-close' style='font-size: 11px;'></span></button>");
+      button.attr("data-reveal-pass-id", reveal_id);
+      $(this).after(button);
+      $(this).attr("data-reveal-pass-id", reveal_id);
+      $(this).on('input', function () {
+        const visible = Boolean($(this).val());
+        $(this).siblings(`button[data-reveal-pass-id="${$(this).attr("data-reveal-pass-id")}"]`).toggleClass('hidden', !visible);
+      });
+      button.mousedown(event => {
+        event.preventDefault();
+        button.find("span.glyphicon").removeClass('glyphicon-eye-close').addClass('glyphicon-eye-open');
+        $(this).siblings(`input[data-reveal-pass-id="${$(this).attr("data-reveal-pass-id")}"]`).attr('type', 'text');
+      }).mouseup(event => {
+        event.preventDefault();
+        button.find("span.glyphicon").removeClass('glyphicon-eye-open').addClass('glyphicon-eye-close');
+        $(this).siblings(`input[data-reveal-pass-id="${$(this).attr("data-reveal-pass-id")}"]`).attr('type', 'password');
+      }).click(event => {
+        event.preventDefault();
+      });
+    });
+  }
+
+  initButtonHandlers() {
+    $('.btn, input[type="radio"]').focus(function () { this.blur(); });
+
+    $("#add_form").submit(function (event) {
+      event.preventDefault();
+      const formData = new FormData(this);
+      const $this = $(this);
+      if ($this.find("#add_name").val() === "" && $this.find("#add_file").val() === "") {
+        $this[0].reportValidity();
+        return false;
+      } else {
+        $.post({
+          url: "{{url_for('json.add_package')}}",
+          data: formData,
+          processData: false,
+          contentType: false,
+          success: () => {
+            const queue = $this.find("#add_dest").val() === "1" ? "queue" : "collector";
+            const re = new RegExp(`/${queue}/?$`, "i");
+            if (window.location.toString().match(re)) {
+              window.location.assign(window.location.href.replace(/#.*$/, ''));
+            }
+          },
+          error: () => {
+            indicateFail("{{_('Error occurred')}}");
+          }
+        });
+        $("#add_box").modal('hide');
+        return false;
+      }
+    });
+
+    $(".action_add").click(() => {
+      $("#add_form").trigger("reset");
+    });
+
+    $("#action_play").click(() => {
+      $.post("{{url_for('api.rpc', func='unpause_server')}}", () => {
+        $.post({
+          url: "{{url_for('json.status')}}",
+          dataType: 'json',
+          contentType: 'application/json',
+          data: '{}',
+          timeout: 3000,
+          success: loadJsonToContent
+        });
+      });
+    });
+
+    $("#action_cancel").click(() => {
+      this.yesNoDialog("{{_('Are you sure you want to abort all downloads?')}}", (answer) => {
+        if (answer) {
+          $.post("{{url_for('api.rpc', func='stop_all_downloads')}}");
+        }
+      });
+    });
+
+    $("#action_stop").click(() => {
+      $.post("{{url_for('api.rpc', func='pause_server')}}", () => {
+        $.post({
+          url: "{{url_for('json.status')}}",
+          dataType: 'json',
+          contentType: 'application/json',
+          data: '{}',
+          timeout: 3000,
+          success: loadJsonToContent
+        });
+      });
+    });
+
+    $("#toggle_queue").click(() => {
+      $.post("{{url_for('api.rpc', func='toggle_pause')}}", () => {
+        $.post({
+          url: "{{url_for('json.status')}}",
+          dataType: 'json',
+          data: '{}',
+          contentType: 'application/json',
+          timeout: 3000,
+          success: loadJsonToContent
+        });
+      });
+    });
+
+    $("#toggle_proxy").click(() => {
+      $.post("{{url_for('api.rpc', func='toggle_proxy')}}", () => {
+        $.post({
+          url: "{{url_for('json.status')}}",
+          dataType: 'json',
+          contentType: 'application/json',
+          data: '{}',
+          timeout: 3000,
+          success: loadJsonToContent
+        });
+      });
+    });
+
+    $("#toggle_reconnect").click(() => {
+      $.post("{{url_for('api.rpc', func='toggle_reconnect')}}", () => {
+        $.post({
+          url: "{{url_for('json.status')}}",
+          dataType: 'json',
+          contentType: 'application/json',
+          data: '{}',
+          timeout: 3000,
+          success: loadJsonToContent
+        });
+      });
+    });
+
+    $(".cap_info").click(() => {
+      captchaHandler.loadCaptcha("get", "");
+    });
+
+    $("#cap_submit").click(() => {
+      captchaHandler.submitCaptcha();
+    });
+
+    $("#cap_box #cap_positional").click(captchaHandler.submitPositionalCaptcha);
+  }
+
+  scrollToTop() {
+    $('html,body').animate({ scrollTop: 0 }, 'slow');
+    return false;
+  }
+
+  indicateLoad() {
+    $(".load-indicator").css('opacity', 1);
+  }
+
+  indicateFinish() {
+    $(".load-indicator").css('opacity', 0);
+  }
+
+  indicateSuccess(message = "{{_('Success')}}", duration = 3000) {
+    this.indicateFinish();
+    mdtoast(`${message}.`, { position: "bottom center", type: "success", duration: duration });
+  }
+
+  indicateFail(message = "{{_('Failed')}}", duration = 4000) {
+    this.indicateFinish();
+    mdtoast(`${message}.`, { position: "bottom center", type: "error", duration: duration });
+  }
+
+  indicateInfo(message, duration = 6000) {
+    this.indicateFinish();
+    mdtoast(`${message}.`, { position: "bottom center", type: "info", duration: duration });
+  }
+
+  yesNoDialog(question, callback) {
+    const callStack = (new Error().stack).split('\n');
+    const callerId = callStack[1].split('/').at(-1)
+    const yesNoSettings = JSON.parse(sessionStorage.getItem('yesNoSettings') || "{}");
+    const storedAnswer = yesNoSettings[callerId];
+    if (storedAnswer === undefined) {
+      const visibleModals = $('.modal.in');
+      if (visibleModals.length > 0) {
+        const activeModal = visibleModals.first();
+        const modalHeader = activeModal.find('.modal-header');
+        const modalBody = activeModal.find('.modal-body');
+        const modalFooter = activeModal.find('.modal-footer');
+
+        const originalTitle = modalHeader.text().trim();
+        const originalBody = modalBody.html().trim();
+
+        modalFooter.addClass("hidden");
+        modalHeader.text('{{_("Confirmation")}}');
+        modalBody.html(
+          '<p>' + question + '</p>' +
+          `<div style="margin-bottom: 25px;"><input type="checkbox" id="dontAskAgain2"><label for="dontAskAgain2" style="font-weight: normal; margin-left: 4px; user-select: none;">{{_("Don't ask again")}}</label></div>` +
+          '<button type="button" class="btn btn-success" style="float: right;" id="okButton">{{_("Ok")}}</button>' +
+          '<button type="button" class="btn btn-warning" style="margin-right: 5px; float: right" id="cancelButton">{{_("Cancel")}}</button>'
+        );
+
+        modalBody.one('click', '#okButton, #cancelButton', (event) => {
+          const answer = $(event.target).attr("id") === "okButton";
+          const dontAskAgain = $('#dontAskAgain2').is(':checked');
+          modalHeader.text(originalTitle);
+          modalBody.html(originalBody);
+          modalFooter.removeClass('hidden');
+          if (dontAskAgain) {
+            yesNoSettings[callerId] = answer;
+            sessionStorage.setItem("yesNoSettings", JSON.stringify(yesNoSettings));
+          }
+          callback(answer);
+        });
+      } else {
+        $('#modal_question').text(question);
+        $('#dontAskAgain').prop('checked', false);
+
+        $('#modal_body').one('click', '#okButton, #cancelButton', (event) => {
+          const answer = $(event.target).attr("id") === "okButton";
+          const dontAskAgain = $('#dontAskAgain').is(':checked');
+          $('#yesno_box').modal('hide');
+          if (dontAskAgain) {
+            yesNoSettings[callerId] = answer;
+            sessionStorage.setItem("yesNoSettings", JSON.stringify(yesNoSettings));
+          }
+          callback(answer);
+        });
+
+        $('#yesno_box').modal('show');
+      }
+    } else {
+      callback(storedAnswer);
+    }
+  }
+}
+
+var uiHandler = new UIHandler();
+
+const formToObject = (form) => {
+  const obj = {};
+
+  $(form).find("input, select, textarea").each(function () {
+    let value;
+    const $el = $(this);
+    const name = $el.attr("name");
+    if (!name || $el.prop("disabled")) return;
+
+    if ($el.is('input[type="checkbox"]')) {
+      value = $el.prop("checked") ? true : false;
+    }
+    else {
+      value = $el.val();
+    }
+
+    if (!value && value !== "") return;
+
+    obj[name] = value
+  });
+
+  return obj;
+};
+
+const humanFileSize = (f) => {
+  const d = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"];
+  const b = Math.log(f) / Math.log(1024);
+  const e = Math.floor(b);
+  const c = Math.pow(1024, e);
+  return f === 0 ? "0 B" : `${Math.round(f * 100 / c) / 100} ${d[e]}`;
+};
+
+const parseUri = () => {
+  const $add_links = $("#add_links");
+  const b = $add_links.val();
+  const g = new RegExp("(?:ht|f)tp(?:s?)://[a-zA-Z0-9-./?=_&%#:]+(?:[<| |\\\"|'|\\r|\\n|\\t]{1}|$)", "gi");
+  const d = b.match(g);
+  if (d === null) return $add_links.val("");
+
+  let e = "";
+  d.forEach(c => {
+    e += c.replace(/[\s"'<>\n]/g, " \n");
+  });
+  return $add_links.val(e);
+};
+
+Array.prototype.remove = function (from, to) {
+  let left;
+  const rest = this.slice(((to || from) + 1) || this.length);
+  this.length = (left = from < 0) != null ? left : this.length + { from };
+  if (this.length === 0) { return []; }
+  return this.push.apply(this, rest);
+};
+
+const getScrollBarHeight = () => {
+  const inner = document.createElement('p');
+  inner.style.width = "200px";
+  inner.style.height = "100%";
+
+  const outer = document.createElement('div');
+  outer.style.position = "absolute";
+  outer.style.top = "0px";
+  outer.style.left = "0px";
+  outer.style.visibility = "hidden";
+  outer.style.width = "150px";
+  outer.style.height = "200px";
+  outer.style.overflow = "hidden";
+  outer.appendChild(inner);
+
+  document.body.appendChild(outer);
+  const w1 = inner.offsetHeight;
+  outer.style.overflow = 'scroll';
+  const w2 = inner.offsetHeight === w1 ? outer.clientHeight : inner.offsetHeight;
+
+  document.body.removeChild(outer);
+
+  return (w1 - w2);
+};
+
+$(() => {
+  uiHandler.initUI()
+
+  if (thisScript.getAttribute('nopoll') !== "1") {
+    $.post({
+      url: "{{url_for('json.status')}}",
+      dataType: 'json',
+      contentType: 'application/json',
+      data: '{}',
+      timeout: 3000,
+      success: loadJsonToContent
+    });
+
+    const statusInterval = setInterval(() => {
+      $.post({
+        url: "{{url_for('json.status')}}",
+        dataType: 'json',
+        contentType: 'application/json',
+        data: '{}',
+        timeout: 3000,
+        success: loadJsonToContent,
+        error: (xhr) => {
+          if (xhr.status === 400) {
+            clearInterval(statusInterval);
+            uiHandler.indicateInfo("{{_('Status updates stopped due to authentication error,<br>please refresh the page')}}", 0);
+          }
+        }
+      });
+    }, 4000);
+  }
+});
+
+const loadJsonToContent = (message) => {
+  $("#speed").text(`${humanFileSize(message.speed)}/s`);
+  $("#actives").text(message.active);
+  $("#actives_from").text(message.queue);
+  $("#actives_total").text(message.total);
+  uiHandler.updateFaviconBadge(Boolean(message.captcha));
+  const $cap_info = $(".cap_info");
+  if (message.captcha) {
+    const notificationVisible = ($cap_info.css("display") !== "none");
+    if (!notificationVisible) {
+      $cap_info.css('display', 'inline');
+      uiHandler.indicateInfo("{{_('New Captcha Request')}}");
+    }
+    if (notificationHandler.enabled && !document.hasFocus() && !notificationVisible) {
+      const notification = notificationHandler.showNotification('pyLoad', {
+        icon: "{{theme_static('img/favicon.ico')}}",
+        body: "{{_('New Captcha Request')}}",
+        tag: 'pyload_captcha'
+      }, (event) => {
+        event.preventDefault();
+        parent.focus();
+        window.focus();
+        $("#action_cap")[0].click();
+      });
+    }
+  } else {
+    $cap_info.css('display', 'none');
+  }
+  $("#time").text(message.download ? " {{_('on')}}" : " {{_('off')}}").css('background-color', message.download ? '#5cb85c' : "#d9534f");
+  $("#proxy").text(message.proxy ? " {{_('on')}}" : " {{_('off')}}").css('background-color', message.proxy ? "#5cb85c" : "#d9534f");
+  $("#reconnect").text(message.reconnect ? " {{_('on')}}" : " {{_('off')}}").css('background-color', message.reconnect ? "#5cb85c" : "#d9534f");
+  return null;
+};
+
+{% endautoescape %}

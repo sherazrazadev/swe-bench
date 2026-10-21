@@ -1,0 +1,80 @@
+site_name: HTTPX2
+site_description: A next-generation HTTP client for Python.
+
+theme:
+    name: 'material'
+    custom_dir: 'docs/overrides'
+    palette:
+      - scheme: 'default'
+        media: '(prefers-color-scheme: light)'
+        toggle:
+          icon: 'material/lightbulb'
+          name: "Switch to dark mode"
+      - scheme: 'slate'
+        media: '(prefers-color-scheme: dark)'
+        primary: 'blue'
+        toggle:
+          icon: 'material/lightbulb-outline'
+          name: 'Switch to light mode'
+
+repo_name: pydantic/httpx2
+repo_url: https://github.com/pydantic/httpx2/
+edit_uri: ""
+
+nav:
+    - Introduction: 'index.md'
+    - QuickStart: 'quickstart.md'
+    - Migrating from HTTPX: 'migration.md'
+    - Advanced:
+        - Clients: 'advanced/clients.md'
+        - Authentication: 'advanced/authentication.md'
+        - SSL: 'advanced/ssl.md'
+        - Proxies: 'advanced/proxies.md'
+        - Timeouts: 'advanced/timeouts.md'
+        - Resource Limits: 'advanced/resource-limits.md'
+        - Event Hooks: 'advanced/event-hooks.md'
+        - Transports: 'advanced/transports.md'
+        - Text Encodings: 'advanced/text-encodings.md'
+        - Extensions: 'advanced/extensions.md'
+        - Emscripten: 'advanced/emscripten.md'
+    - Guides:
+        - Async Support: 'async.md'
+        - HTTP/2 Support: 'http2.md'
+        - Logging: 'logging.md'
+        - Server-Sent Events: 'sse.md'
+        - WebSockets: 'websockets.md'
+        - Requests Compatibility: 'compatibility.md'
+        - Troubleshooting: 'troubleshooting.md'
+    - API Reference:
+        - Developer Interface: 'api.md'
+        - Exceptions: 'exceptions.md'
+        - Environment Variables: 'environment_variables.md'
+    - Community:
+        - Third Party Packages: 'third_party_packages.md'
+        - Contributing: 'contributing.md'
+        - Code of Conduct: 'code_of_conduct.md'
+
+plugins:
+  - mkdocstrings:
+      handlers:
+        python:
+          inventories:
+            - https://docs.python.org/3/objects.inv
+          options:
+            show_root_heading: true
+            show_source: false
+            show_signature_annotations: true
+            separate_signature: true
+            line_length: 60
+            heading_level: 3
+            inherited_members: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      use_pygments: true
+      pygments_lang_class: true
+  - pymdownx.superfences
+
+extra_css:
+    - css/custom.css

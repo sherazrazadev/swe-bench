@@ -1,0 +1,67 @@
+# HTTPCore 2
+
+[![Test Suite](https://github.com/pydantic/httpx2/workflows/Test%20Suite/badge.svg)](https://github.com/pydantic/httpx2/actions)
+[![Package version](https://badge.fury.io/py/httpcore2.svg)](https://pypi.org/project/httpcore2/)
+
+> *Do one thing, and do it well.*
+
+The HTTPCore 2 package provides a minimal low-level HTTP client, which does
+one thing only. Sending HTTP requests.
+
+It does not provide any high level model abstractions over the API,
+does not handle redirects, multipart uploads, building authentication headers,
+transparent HTTP caching, URL parsing, session cookie handling,
+content or charset decoding, handling JSON, environment based configuration
+defaults, or any of that Jazz.
+
+Some things HTTPCore 2 does do:
+
+* Sending HTTP requests.
+* Thread-safe / task-safe connection pooling.
+* HTTP(S) proxy & SOCKS proxy support.
+* Supports HTTP/1.1 and HTTP/2.
+* Provides both sync and async interfaces.
+* Async backend support for `asyncio` and `trio`.
+
+## Installation
+
+For HTTP/1.1 only support, install with:
+
+```shell
+pip install httpcore2
+```
+
+For HTTP/1.1 and HTTP/2 support, install with:
+
+```shell
+pip install 'httpcore2[http2]'
+```
+
+For SOCKS proxy support, install with:
+
+```shell
+pip install 'httpcore2[socks]'
+```
+
+## Example
+
+Let's check we're able to send HTTP requests:
+
+```python
+import httpcore2
+
+response = httpcore2.request("GET", "https://www.example.com/")
+
+print(response)
+# <Response [200]>
+print(response.status)
+# 200
+print(response.headers)
+# [(b'Accept-Ranges', b'bytes'), (b'Age', b'557328'), (b'Cache-Control', b'max-age=604800'), ...]
+print(response.content)
+# b'<!doctype html>\n<html>\n<head>\n<title>Example Domain</title>\n\n<meta charset="utf-8"/>\n ...'
+```
+
+Ready to get going?
+
+Head over to [the quickstart documentation](quickstart.md).

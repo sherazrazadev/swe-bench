@@ -1,0 +1,25 @@
+# Agent container: internal network only (no route to the internet). Its single way out is the egress proxy, which
+# allows HTTPS to the model-API hosts below and nothing else (docker/egress/egress.py; decisions in its docker logs).
+services:
+  main:
+    networks: [agent_isolated]
+    environment:
+      HTTPS_PROXY: http://egress:3128
+      https_proxy: http://egress:3128
+      HTTP_PROXY: http://egress:3128
+      http_proxy: http://egress:3128
+      NO_PROXY: localhost,127.0.0.1
+      no_proxy: localhost,127.0.0.1
+    depends_on: [egress]
+  egress:
+    image: cwe-egress:2
+    pull_policy: never
+    environment:
+      ALLOWED_HOSTS: api.deepseek.com,api.xiaomimimo.com
+    networks: [agent_isolated, egress_outside]
+networks:
+  agent_isolated:
+    internal: true
+  egress_outside:                # ONE shared outbound network for every task's proxy (Docker has few address pools)
+    external: true
+    name: cwe-egress-outside

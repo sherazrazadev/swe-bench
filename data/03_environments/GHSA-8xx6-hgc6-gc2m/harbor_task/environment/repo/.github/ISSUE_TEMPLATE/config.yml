@@ -1,0 +1,11 @@
+# Ref: https://help.github.com/en/github/building-a-strong-community/configuring-issue-templates-for-your-repository#configuring-the-template-chooser
+blank_issues_enabled: false
+contact_links:
+- name: Discussions
+  url: https://github.com/pydantic/httpx2/discussions
+  about: >
+    The "Discussions" forum is where you want to start. 💖
+- name: 💬 Join Slack
+  url: https://logfire.pydantic.dev/docs/join-slack/
+  about: >
+    Join our Slack community to ask questions, get help, and chat about HTTPX2.
