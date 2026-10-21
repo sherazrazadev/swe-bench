@@ -9,6 +9,9 @@
 #      (a plain `git add` would otherwise silently collapse a real repo snapshot into a content-less
 #      gitlink; the workflow renames it back on the runner before building).
 #   2. git add -f's just that harbor_task/ directory (data/03_environments/ is gitignored).
+# Also force-adds the whole local pipeline_state.sqlite3: stage 5 reads it to know a candidate passed
+# stage 4, and it's gitignored, so without it a fresh checkout finds no eligible candidates and stage 5
+# just logs "Nothing to evaluate" and exits 0 (seen on the first real run of this workflow).
 # Then commits everything to a new branch, renames the .git.bak dirs back to .git locally (so the
 # local tree is left exactly as it was), and pushes the branch.
 set -euo pipefail
@@ -42,6 +45,7 @@ git checkout -b "$branch"
 for id in "${ids[@]}"; do
   git add -f "data/03_environments/$id/harbor_task"
 done
+git add -f data/pipeline_state.sqlite3
 git add -f .github/workflows/stage5-trial.yml scripts/ci_push_trial_batch.sh scripts/ci_collect_trial_batch.sh 2>/dev/null || true
 git commit -m "CI trial batch: ${ids[*]}
 
