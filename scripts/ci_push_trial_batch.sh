@@ -14,6 +14,8 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
+remote="${CI_REMOTE:-origin}"   # override: CI_REMOTE=swe-bench scripts/ci_push_trial_batch.sh ...
+
 [ $# -ge 1 ] || { echo "usage: $0 <candidate-id> [candidate-id ...]"; exit 2; }
 ids=("$@")
 branch="ci/trial-batch-$(date +%Y%m%d-%H%M)"
@@ -49,10 +51,10 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 restore
 trap - EXIT
 
-git push -u origin "$branch"
+git push -u "$remote" "$branch"
 git checkout -
 
 echo
-echo "Pushed branch: $branch"
+echo "Pushed branch: $branch (remote: $remote)"
 echo "Trigger the trial with:"
-echo "  gh workflow run stage5-trial.yml --ref $branch -f candidates=$(IFS=,; echo "${ids[*]}") -f max_parallel=3"
+echo "  gh workflow run stage5-trial.yml --repo $(git remote get-url "$remote" | sed -E 's#.*github.com[:/]##; s#\.git$##') --ref $branch -f candidates=$(IFS=,; echo "${ids[*]}") -f max_parallel=3"
