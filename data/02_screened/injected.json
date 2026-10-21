@@ -1,0 +1,228 @@
+{
+  "vulnerabilities": [
+    {
+      "osv_id": "INJ-zitadel-zitadel-202610191532",
+      "cve_id": null,
+      "ecosystem": "Go",
+      "package": "github.com/zitadel/zitadel",
+      "repo_url": "https://github.com/zitadel/zitadel",
+      "pre_patch_commit": "d457a905e24e0b88ed3ab12325b9712fb500c73c",
+      "fixed_commit": "910522e4ce9b9c4144f01c7d44d1582921c04a35",
+      "summary": "Any authenticated user with no management role can call the v2 or v2beta ListAuthorizations endpoint and enumerate every authorization (user IDs, login names, display names, projects, roles, organizations) across all organizations of the instance, including those of other users and orgs they have no permission on.",
+      "description": "ListAuthorizations results are restricted to the user grants the caller is permitted to read: the query layer applies the caller's permission check (user.grant.read in the grant's organization, or the caller's own grants), since the RPC itself is only annotated as 'authenticated'.",
+      "cwe_ids": [
+        "CWE-862"
+      ],
+      "published": "2026-10-19T15:38:41Z",
+      "aliases": [],
+      "severity": null,
+      "source": "injected",
+      "sources": [
+        "injected"
+      ],
+      "injection": {
+        "control": "ListAuthorizations results are restricted to the user grants the caller is permitted to read: the query layer applies the caller's permission check (user.grant.read in the grant's organization, or the caller's own grants), since the RPC itself is only annotated as 'authenticated'.",
+        "places": [
+          {
+            "file": "internal/api/grpc/authorization/v2/query.go",
+            "role": "AuthorizationService v2 ListAuthorizations handler (POST /v2/authorizations/search) passes s.checkPermission into query.UserGrants for per-grant permission filtering"
+          },
+          {
+            "file": "internal/api/grpc/authorization/v2beta/query.go",
+            "role": "Parallel AuthorizationService v2beta ListAuthorizations handler (POST /v2beta/authorizations/search) passes s.checkPermission into query.UserGrants for per-grant permission filtering"
+          }
+        ],
+        "entry_points": [
+          "zitadel.authorization.v2.AuthorizationService/ListAuthorizations (POST /v2/authorizations/search)",
+          "zitadel.authorization.v2beta.AuthorizationService/ListAuthorizations (POST /v2beta/authorizations/search)"
+        ],
+        "upstream_head": "910522e4ce9b9c4144f01c7d44d1582921c04a35"
+      },
+      "screening": {
+        "diff": {
+          "source_files": [
+            "internal/api/grpc/authorization/v2/query.go",
+            "internal/api/grpc/authorization/v2beta/query.go"
+          ],
+          "source_dirs": [
+            "internal/api/grpc/authorization/v2",
+            "internal/api/grpc/authorization/v2beta"
+          ],
+          "source_lines": 4,
+          "test_files": []
+        },
+        "score": 0,
+        "prior": 0
+      }
+    },
+    {
+      "osv_id": "INJ-filamentphp-filament-202610191600",
+      "cve_id": null,
+      "ecosystem": "Packagist",
+      "package": "filament/filament",
+      "repo_url": "https://github.com/filamentphp/filament",
+      "pre_patch_commit": "1cd1b42614da62b1c7fc3ad240d60da19816bbef",
+      "fixed_commit": "073351460bad1e73d6831f84d7cccc170e15c0cc",
+      "summary": "A user authenticated to one tenant can list, open by key, and successfully validate references to another tenant's records, so cross-tenant data becomes readable and selectable through resource pages and forms.",
+      "description": "Tenant data isolation: every query over a tenant-owned Eloquent model (resource list/record queries, the registered model global scope, and form `exists()` validation) must be constrained to the current tenant.",
+      "cwe_ids": [
+        "CWE-639"
+      ],
+      "published": "2026-10-19T16:04:52Z",
+      "aliases": [],
+      "severity": null,
+      "source": "injected",
+      "sources": [
+        "injected"
+      ],
+      "injection": {
+        "control": "Tenant data isolation: every query over a tenant-owned Eloquent model (resource list/record queries, the registered model global scope, and form `exists()` validation) must be constrained to the current tenant.",
+        "places": [
+          {
+            "file": "packages/panels/src/Resources/Resource/Concerns/BelongsToTenant.php",
+            "role": "Per-resource query scoping via scopeEloquentQueryToTenant(), hit by resource index/view/edit HTTP pages and relation-manager tables; legitimate behaviour pinned by tests/src/Panels/Resources/ResourceTest.php (resources declaring scopeToTenant(false) still return all rows, tenant-owned resources still return the current tenant's rows)."
+          },
+          {
+            "file": "packages/panels/src/Resources/Resource/Concerns/BelongsToTenant.php",
+            "role": "Global-scope registration via registerTenancyModelGlobalScope(), which is the lower-level choke point used by any model query inside the panel (tables, actions, validation); legitimate behaviour pinned by tests/src/Panels/TenancyTest.php (tenant switching and non-tenant panels keep working)."
+          },
+          {
+            "file": "packages/forms/src/Components/Concerns/CanBeValidated.php",
+            "role": "Form validation existence checks via exists() (and, through the same global scope, scopedExists()/scopedUnique()), reached by any Livewire create/edit submission; legitimate behaviour pinned by tests/src/Forms/Components/FieldTest.php (valid same-tenant or non-tenant values pass, modifyRuleUsing is honoured, soft-deleted rows still fail)."
+          }
+        ],
+        "entry_points": [
+          "GET /{panel}/{tenant}/... resource index, view and edit pages (record resolution and table queries)",
+          "Livewire form submission validating an exists()/scopedExists() field on a resource create or edit request"
+        ],
+        "upstream_head": "073351460bad1e73d6831f84d7cccc170e15c0cc"
+      },
+      "screening": {
+        "diff": {
+          "source_files": [
+            "packages/forms/src/Components/Concerns/CanBeValidated.php",
+            "packages/panels/src/Resources/Resource/Concerns/BelongsToTenant.php"
+          ],
+          "source_dirs": [
+            "packages/forms/src/Components/Concerns",
+            "packages/panels/src/Resources/Resource/Concerns"
+          ],
+          "source_lines": 54,
+          "test_files": []
+        },
+        "score": 0,
+        "prior": 0
+      }
+    },
+    {
+      "osv_id": "INJ-internlm-lmdeploy-202610191604",
+      "cve_id": null,
+      "ecosystem": "PyPI",
+      "package": "lmdeploy",
+      "repo_url": "https://github.com/InternLM/lmdeploy",
+      "pre_patch_commit": "d0d72f94baf79a12b07f358e6387e11493c74c7d",
+      "fixed_commit": "56a6c7971e4b830b5353c4705982b6bebfb8ee0b",
+      "summary": "A client can submit an arbitrarily long prompt (or trigger enough concurrent external KV-cache loads) that is admitted whole and consumes all GPU KV blocks, making the server run out of memory, deadlock the scheduler, and stop serving other users.",
+      "description": "Per-request prefill work and external KV-cache loads are admitted only within bounded token/KV-block budgets, so no single request can force allocation beyond available GPU paging capacity.",
+      "cwe_ids": [
+        "CWE-770"
+      ],
+      "published": "2026-10-19T16:10:10Z",
+      "aliases": [],
+      "severity": null,
+      "source": "injected",
+      "sources": [
+        "injected"
+      ],
+      "injection": {
+        "control": "Per-request prefill work and external KV-cache loads are admitted only within bounded token/KV-block budgets, so no single request can force allocation beyond available GPU paging capacity.",
+        "places": [
+          {
+            "file": "lmdeploy/pytorch/paging/kv_load_coordinator.py",
+            "role": "External KV-cache load admission: can_admit_load totals the load's missing tail blocks plus other soft reservations against free GPU blocks; legitimate loads that fit (including exactly at the boundary) stay admitted, pinned by tests/pytorch/paging/test_kv_load_coordinator.py."
+          },
+          {
+            "file": "lmdeploy/pytorch/engine/inputs_maker.py",
+            "role": "Engine-loop long-prefill chunking: LongContextChunker.is_long_context decides whether a request exceeding max_prefill_token_num is split into model-safe chunks; ordinary prompts at or below the limit stay unchunked, pinned by tests/pytorch/test_inputs_maker.py."
+          }
+        ],
+        "entry_points": [
+          "POST /v1/chat/completions on the OpenAI-compatible API server (lmdeploy/serve/openai/api_server.py)",
+          "PyTorch engine public generate API (lmdeploy.pytorch.engine.Engine.generate), also backing /v1/completions and PD-disaggregated KV loads"
+        ],
+        "upstream_head": "56a6c7971e4b830b5353c4705982b6bebfb8ee0b"
+      },
+      "screening": {
+        "diff": {
+          "source_files": [
+            "lmdeploy/pytorch/engine/inputs_maker.py",
+            "lmdeploy/pytorch/paging/kv_load_coordinator.py"
+          ],
+          "source_dirs": [
+            "lmdeploy/pytorch/engine",
+            "lmdeploy/pytorch/paging"
+          ],
+          "source_lines": 11,
+          "test_files": []
+        },
+        "score": 0,
+        "prior": 0
+      }
+    },
+    {
+      "osv_id": "INJ-filamentphp-filament-202610192317",
+      "cve_id": null,
+      "ecosystem": "Packagist",
+      "package": "filament/filament",
+      "repo_url": "https://github.com/filamentphp/filament",
+      "pre_patch_commit": "2004c2f83bc4f7b0d9d23966c08ed88187b2e977",
+      "fixed_commit": "c3cc62881eb32709d2a51b706f8846a4c51cc218",
+      "summary": "A user logged into one tenant can list, view, and edit other tenants' records from resource tables, relation tables, global search, and can pass form validation referencing records that belong to another tenant.",
+      "description": "Tenant isolation: every Eloquent query for a tenant-owned model, and every default `exists()` validation check against one, is automatically constrained to the currently authenticated tenant.",
+      "cwe_ids": [
+        "CWE-639"
+      ],
+      "published": "2026-10-19T23:19:00Z",
+      "aliases": [],
+      "severity": null,
+      "source": "injected",
+      "sources": [
+        "injected"
+      ],
+      "injection": {
+        "control": "Tenant isolation: every Eloquent query for a tenant-owned model, and every default `exists()` validation check against one, is automatically constrained to the currently authenticated tenant.",
+        "places": [
+          {
+            "file": "packages/panels/src/Resources/Resource/Concerns/BelongsToTenant.php",
+            "role": "Core panel implementation: scopeEloquentQueryToTenant() is the filter applied by the panel's tenancy global scope to all resource/table/global-search model queries."
+          },
+          {
+            "file": "packages/forms/src/Components/Concerns/CanBeValidated.php",
+            "role": "Forms module parallel implementation: the tenant-aware branch of exists() that builds an Eloquent query (global scopes applied) instead of Rule::exists(), which bypasses global scopes."
+          }
+        ],
+        "entry_points": [
+          "Authenticated panel resource pages and tables (e.g. GET /{panel}/{tenant}/users) rendered through a Resource using BelongsToTenant",
+          "Livewire form submission on resource create/edit and relation-manager attach forms, where exists()/scopedExists validation rules run"
+        ],
+        "upstream_head": "c3cc62881eb32709d2a51b706f8846a4c51cc218"
+      },
+      "screening": {
+        "diff": {
+          "source_files": [
+            "packages/forms/src/Components/Concerns/CanBeValidated.php",
+            "packages/panels/src/Resources/Resource/Concerns/BelongsToTenant.php"
+          ],
+          "source_dirs": [
+            "packages/forms/src/Components/Concerns",
+            "packages/panels/src/Resources/Resource/Concerns"
+          ],
+          "source_lines": 43,
+          "test_files": []
+        },
+        "score": 0,
+        "prior": 0
+      }
+    }
+  ]
+}

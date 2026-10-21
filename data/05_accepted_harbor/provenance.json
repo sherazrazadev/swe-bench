@@ -1,0 +1,29 @@
+{
+  "GHSA-hxh3-vqpv-xpqv": {
+    "cve_id": "CVE-2026-93981",
+    "repo_url": "https://github.com/honojs/hono",
+    "pre_patch_commit": "cac0c4d3fe29aca4e426031067cbbb3b9131e30c",
+    "fixed_commit": "2b8ed402cdab6dfc5e829b480806dcd8db94161e",
+    "ecosystem": "npm",
+    "package": "hono",
+    "cwe_ids": [
+      "CWE-79"
+    ],
+    "summary": "hono/jsx renders plain strings unescaped in boundary components, leading to XSS",
+    "task_dir": "ghsa-hxh3-vqpv-xpqv"
+  },
+  "GHSA-856c-92hv-3vxx": {
+    "cve_id": "CVE-2026-59180",
+    "repo_url": "https://github.com/caronc/apprise",
+    "pre_patch_commit": "371ec8b176bc0efa3f46a8db0e6273a1b3f7f059",
+    "fixed_commit": "68c0aef218055e4586cf4605fd6b56358f5f462d",
+    "ecosystem": "PyPI",
+    "package": "apprise",
+    "cwe_ids": [
+      "CWE-200",
+      "CWE-601"
+    ],
+    "summary": "Apprise forwards configured auth headers across cross-origin HTTP redirects",
+    "task_dir": "ghsa-856c-92hv-3vxx"
+  }
+}

@@ -1,0 +1,2461 @@
+{
+  "generated_at": "2026-10-15T12:58:34Z",
+  "count": 42,
+  "vulnerabilities": [
+    {
+      "osv_id": "GHSA-jq7h-wrvp-3rgx",
+      "cve_id": null,
+      "ecosystem": "PyPI",
+      "package": "pyload-ng",
+      "repo_url": "https://github.com/pyload/pyload",
+      "pre_patch_commit": "8abfe4f434c28a49c7954ff7aa1124d001cdbf6b",
+      "fixed_commit": "3e726ba271a6b1015e3a0ea6dc7e46a8f71a62ad",
+      "summary": "pyLoad: Privilege revocation and password change through the REST API do not invalidate the user's session",
+      "published": "2026-10-09T17:09:09Z",
+      "aliases": [],
+      "cwe_ids": [
+        "CWE-613"
+      ],
+      "severity": "HIGH",
+      "fix_commit_url": "https://github.com/pyload/pyload/commit/3e726ba271a6b1015e3a0ea6dc7e46a8f71a62ad",
+      "source_refs": [
+        "https://github.com/pyload/pyload/commit/3e726ba271a6b1015e3a0ea6dc7e46a8f71a62ad"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "An admin who revokes a user's privileges through the REST API does not actually revoke them, because the session carrying those privileges is never invalidated.\n\npyLoad authorizes each request from values copied into the Flask session at login. set_session in webui/app/helpers.py writes role and perms once, and both login_required and the session branch of apikey_auth read them back from the session rather than from the database. The fix for GHSA-66hx-chf7-3332 handled this by deleting the user's session files, but the call was added only in webui/app/blueprints/json_blueprint.py, at the three WebUI form handlers. Api.set_user_permission and Api.change_password in core/api/__init__.py write to the database and return. Both are exported over /api/<func> and both appear in the OpenAPI spec the project serves at /api, so the documented administration interface takes the unpatched route.\n\nI should concede an overlap up front. GHSA-66hx-chf7-3332 does name the core method in its own Details, pointing at set_user_permission and noting that it updates the database role and permission only. What that advisory does not do is name /api/set_user_permission as a reachable route, and it does not mention change_password at all, which is the half I think is new.\n\nI ran this against pyload-ng 0.5.0b3.dev101 installed from PyPI, on a real instance with real users. Demoting an admin from role 0 to role 1 with permission 0 by POSTing /api/set_user_permission updated the database immediately. The demoted user's existing session still returned 200 on /api/get_userdir, still loaded /settings, and still wrote reconnect.script through /api/set_config_value, which is the admin-only option CVE-2026-33509 was published for. The identical change through /json/update_users killed that session at once: the same request returned 401 and /settings redirected to the login page.\n\nThe password path behaves the same way. After POSTing /api/change_password for a user, their old password was refused at ",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 5,
+            "test": 2
+          },
+          "source_files": [
+            "src/pyload/core/api/__init__.py",
+            "src/pyload/core/database/user_database.py",
+            "src/pyload/webui/app/__init__.py",
+            "src/pyload/webui/app/blueprints/json_blueprint.py",
+            "src/pyload/webui/app/helpers.py"
+          ],
+          "test_files": [
+            "tests/integration/test_session_invalidation.py",
+            "tests/unit/test_api_session_cleanup.py"
+          ],
+          "source_lines": 111,
+          "source_dirs": [
+            "src/pyload/core/api",
+            "src/pyload/core/database",
+            "src/pyload/webui/app",
+            "src/pyload/webui/app/blueprints"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "pyproject.toml",
+            "setup.cfg",
+            "setup.py"
+          ],
+          "test_files_in_repo": 10,
+          "has_dockerfile": true
+        },
+        "score": 58,
+        "fix_commit_date": "2026-10-05"
+      }
+    },
+    {
+      "osv_id": "GHSA-9q47-3cm2-2rp8",
+      "cve_id": null,
+      "ecosystem": "PyPI",
+      "package": "pyload-ng",
+      "repo_url": "https://github.com/pyload/pyload",
+      "pre_patch_commit": "2d03bea489d6cb4b1382ba3717f41c50bef261fa",
+      "fixed_commit": "5dc6b628e2d8b9f42dde82f396e5b7a2b513f6d1",
+      "summary": "pyLoad: Rate-Limit Bypass and Audit-Log Spoofing via Trusted Client-Controlled `X-Forwarded-For` Header",
+      "published": "2026-10-09T17:09:12Z",
+      "aliases": [],
+      "cwe_ids": [
+        "CWE-290"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/pyload/pyload/commit/5dc6b628e2d8b9f42dde82f396e5b7a2b513f6d1",
+      "source_refs": [
+        "https://github.com/pyload/pyload/commit/5dc6b628e2d8b9f42dde82f396e5b7a2b513f6d1"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "## Summary\n\npyLoad determines the \"client IP\" used for its rate-limiting decorator and for its\nsecurity/audit logging by reading the client-supplied `X-Forwarded-For` (XFF) HTTP header and\ntaking the leftmost value. No trusted-proxy configuration exists (the Cheroot WSGI server faces\nclients directly, and there is no `ProxyFix` middleware). Because any client can freely set this\nheader, an attacker can (1) completely bypass rate limiting by rotating the header on each request,\nand (2) forge the source IP recorded in security logs for login and API-key authentication\nfailures, defeating IP-based blocking (e.g. fail2ban) and poisoning attribution.\n\n\n## Severity\n\nMedium — CVSS 3.1: `AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:L` (~5.3)\n\n- CWE-807: Reliance on Untrusted Inputs in a Security Decision\n- CWE-290: Authentication Bypass by Spoofing\n- CWE-348: Use of Less Trusted Source\n\n\n## Affected Version\n\npyLoad 0.5.0b3 (built from the `develop` branch). Confirmed still present and exploitable in the\nlater `pyload-develop-2` snapshot (the affected files are byte-identical between the two; the\n`develop-2` changes only touched the unrelated API-key cache).\n\n\n## Affected Component\n\nWeb UI request handling — client-IP derivation used by rate limiting and security logging.\n\n- `src/pyload/webui/app/helpers.py:446` — inside the `rate_limit()` decorator; derives the per-IP\n  bucket key.\n- `src/pyload/webui/app/helpers.py:357` — API-key authentication success/failure logging.\n- `src/pyload/webui/app/blueprints/app_blueprint.py:81` — web login success/failure logging.\n- `src/pyload/webui/webserver_thread.py` — Cheroot serves the Flask app directly; no reverse-proxy\n  trust boundary or `ProxyFix`.\n- Consumer: `src/pyload/webui/app/blueprints/api_blueprint.py:25` applies\n  `@rate_limit(count=100, period=60)` to the `/api/<func>` RPC endpoint.\n\n\n## Description:\n\nAll three locations derive the client IP with the identical expression:\n\n```python\nclient_ip = flask.request.headers.get(\"X-Forwarded-",
+      "screening": {
+        "diff": {
+          "counts": {
+            "config": 1,
+            "source": 4,
+            "test": 2
+          },
+          "source_files": [
+            "src/pyload/webui/app/__init__.py",
+            "src/pyload/webui/app/blueprints/app_blueprint.py",
+            "src/pyload/webui/app/blueprints/cnl_blueprint.py",
+            "src/pyload/webui/app/helpers.py"
+          ],
+          "test_files": [
+            "tests/integration/test_cnl.py",
+            "tests/unit/test_api_rate_limit.py"
+          ],
+          "source_lines": 58,
+          "source_dirs": [
+            "src/pyload/webui/app",
+            "src/pyload/webui/app/blueprints"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "pyproject.toml",
+            "setup.cfg",
+            "setup.py"
+          ],
+          "test_files_in_repo": 13,
+          "has_dockerfile": true
+        },
+        "score": 53,
+        "fix_commit_date": "2026-10-08"
+      }
+    },
+    {
+      "osv_id": "GHSA-6qxp-vccf-f47h",
+      "cve_id": "CVE-2026-104850",
+      "ecosystem": "npm",
+      "package": "@modelcontextprotocol/sdk",
+      "repo_url": "https://github.com/modelcontextprotocol/typescript-sdk",
+      "pre_patch_commit": "ef39308e963496b75e50553f6265d99cacb4fbb9",
+      "fixed_commit": "edd12e282620ebf770d67316f19cf91d4112a1bd",
+      "summary": "MCP TypeScript SDK: OAuth client could send credentials to an authorization server chosen by the MCP server",
+      "published": "2026-10-06T15:35:44Z",
+      "aliases": [
+        "CVE-2026-104850"
+      ],
+      "cwe_ids": [
+        "CWE-345",
+        "CWE-522"
+      ],
+      "severity": "HIGH",
+      "fix_commit_url": "https://github.com/modelcontextprotocol/typescript-sdk/commit/edd12e282620ebf770d67316f19cf91d4112a1bd",
+      "source_refs": [
+        "https://github.com/modelcontextprotocol/typescript-sdk/commit/edd12e282620ebf770d67316f19cf91d4112a1bd"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Summary\nIn affected versions, the SDK's OAuth client let the MCP server decide which authorization server received the client's OAuth credentials. Credentials were not tied to the authorization server they belong to.\n\nA malicious or compromised MCP server could name its own authorization server. With no user interaction, the client would send it:\n\n- the `refresh_token` and `client_secret` stored from an earlier sign-in\n- the `client_secret` or signed assertion configured on a bundled provider\n\n### Am I affected?\nYes, if both of these hold:\n\n- your application uses the SDK's OAuth client over HTTP, through any of:\n    - an `authProvider` on a transport\n    - the `withOAuth()` middleware\n    - direct calls to `auth()` or `fetchToken()`\n- it may connect to an MCP server you do not fully trust while holding credentials for a legitimate authorization server\n\nAffected versions:\n\n- `@modelcontextprotocol/sdk` 1.12.0 through 1.30.1\n- `@modelcontextprotocol/client` 2.0.0 through 2.1.0, only for:\n    - bundled providers without `expectedIssuer`\n    - credentials stored or supplied without `issuer`\n    - direct calls to `fetchToken()`\n    - providers that read storage back through `OAuthTokensSchema` or `OAuthClientInformationSchema`\n\nNot affected:\n\n- MCP servers built with the SDK\n- stdio clients\n\n### Fix\nUpgrade to:\n\n- 1.x: `@modelcontextprotocol/sdk` 1.31.0 or later\n- 2.x: `@modelcontextprotocol/client` 2.2.0 or later, and `@modelcontextprotocol/core` 2.2.0 or later if you import it directly\n\nThe client now records the authorization server as `issuer` on saved credentials and does not send them to a different one. The user signs in again, or the call throws.\n\nIn the following cases, upgrading to the patched version is not enough. You also need to make a change:\n\n- **Bundled providers** (`ClientCredentialsProvider`, `PrivateKeyJwtProvider`, `StaticPrivateKeyJwtProvider`, `CrossAppAccessProvider`): pass `expectedIssuer`, for example `expectedIssuer: 'https://auth.example.",
+      "screening": {
+        "diff": {
+          "counts": {
+            "docs": 7,
+            "source": 8,
+            "test": 6
+          },
+          "source_files": [
+            "packages/client/src/client/auth.ts",
+            "packages/client/src/client/authErrors.ts",
+            "packages/client/src/client/authExtensions.examples.ts",
+            "packages/client/src/client/authExtensions.ts",
+            "packages/client/src/client/crossAppAccess.ts",
+            "packages/core-internal/src/shared/authUtils.ts",
+            "packages/core/src/auth.ts",
+            "packages/server-legacy/src/auth/providers/proxyProvider.ts"
+          ],
+          "test_files": [
+            "packages/client/test/client/auth.test.ts",
+            "packages/client/test/client/authExtensions.test.ts",
+            "packages/client/test/client/crossAppAccess.test.ts",
+            "packages/core-internal/test/shared/authUtils.test.ts",
+            "packages/server-legacy/test/auth/providers/proxyProvider.test.ts",
+            "test/e2e/scenarios/client-auth.test.ts"
+          ],
+          "source_lines": 174,
+          "source_dirs": [
+            "packages/client/src/client",
+            "packages/core-internal/src/shared",
+            "packages/core/src",
+            "packages/server-legacy/src/auth/providers"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 267,
+          "has_dockerfile": false
+        },
+        "score": 53,
+        "fix_commit_date": "2026-09-28"
+      }
+    },
+    {
+      "osv_id": "GHSA-8r5x-fm3f-whwj",
+      "cve_id": "CVE-2026-106446",
+      "ecosystem": "npm",
+      "package": "handlebars",
+      "repo_url": "https://github.com/handlebars-lang/handlebars.js",
+      "pre_patch_commit": "0fcf25c63038b43e78e17adbf029cf073e80554d",
+      "fixed_commit": "703fdcc5fd6cc8d1cc0c33cc19de40c467c4b8d2",
+      "summary": "Handlebars: JavaScript Injection via AST Type Confusion in compile (bypass of CVE-2026-33937)",
+      "published": "2026-10-08T17:52:32Z",
+      "aliases": [
+        "CVE-2026-106446"
+      ],
+      "cwe_ids": [
+        "CWE-94",
+        "CWE-843"
+      ],
+      "severity": "CRITICAL",
+      "fix_commit_url": "https://github.com/handlebars-lang/handlebars.js/commit/703fdcc5fd6cc8d1cc0c33cc19de40c467c4b8d2",
+      "source_refs": [
+        "https://github.com/handlebars-lang/handlebars.js/commit/703fdcc5fd6cc8d1cc0c33cc19de40c467c4b8d2"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "## Summary\n\n`Handlebars.compile()` and `Handlebars.precompile()` accept a pre-parsed AST as well as a template string. Handlebars 4.7.9 added validation for such ASTs. It only checks values on `PathExpression`, `NumberLiteral` and `BooleanLiteral` nodes, and the compiler still writes several other AST values into the generated JavaScript unchecked.\n\nIf an application passes an untrusted object to `compile()` or `precompile()`, such as a parsed JSON request body, that object can carry arbitrary JavaScript. With `compile()`, the code runs on the server when the template renders. With `precompile()`, it ends up in the precompiled output and runs wherever that output is loaded.\n\nApplications that only ever pass template **strings** are not affected.\n\nThis bypasses the AST validation added in 4.7.9 for GHSA-2w6w-674q-4c4q, GHSA-xhpv-hc6g-r9c6 and GHSA-3mfm-83xf-c92r.\n\n## Details\n\nThe 4.7.9 validator runs in `parseWithoutProcessing()` and walks the whole AST. It only checks values on nodes whose `type` is `PathExpression`, `NumberLiteral` or `BooleanLiteral`. It passes over plain objects without a `type`, and over strings and other non-object values. The compiler reads these values from other places and writes them into the generated code as-is:\n\n| AST value | Written into generated code as | Compile options needed |\n| --- | --- | --- |\n| `Program.blockParams.length` | `container.program(<index>, data, <length>)` | none (default options) |\n| `depth` on a param that is not a `PathExpression`, e.g. a `StringLiteral` | `depths[<depth>]` | `stringParams: true` |\n| A `StringLiteral.value` that is not a string | raw JavaScript literal | `stringParams: true` |\n| A `PathExpression.original` that is not a string | raw JavaScript literal | `stringParams: true` |\n\nThe first row works with default options. A `Program` with `blockParams: { \"length\": \"<JS expression>\" }` passes validation because:\n\n1. the `blockParams` object has no `type`, so none of the type-specific checks apply, an",
+      "screening": {
+        "diff": {
+          "counts": {
+            "docs": 1,
+            "source": 5,
+            "test": 2
+          },
+          "source_files": [
+            "lib/handlebars/compiler/base.js",
+            "lib/handlebars/compiler/compiler.js",
+            "lib/handlebars/compiler/javascript-compiler.js",
+            "lib/handlebars/exception.js",
+            "types/index.d.ts"
+          ],
+          "test_files": [
+            "spec/compiler.js",
+            "spec/security.js"
+          ],
+          "source_lines": 285,
+          "source_dirs": [
+            "lib/handlebars",
+            "lib/handlebars/compiler",
+            "types"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 4,
+          "has_dockerfile": false
+        },
+        "score": 50,
+        "fix_commit_date": "2026-10-05"
+      }
+    },
+    {
+      "osv_id": "GHSA-j22f-vq7h-c4qm",
+      "cve_id": "CVE-2026-92708",
+      "ecosystem": "npm",
+      "package": "devalue",
+      "repo_url": "https://github.com/sveltejs/devalue",
+      "pre_patch_commit": "84f6f67999104e36940f744bec0443536de1b463",
+      "fixed_commit": "46dc877b3570dafb1cd3291b9bb48cecef8f7266",
+      "summary": "devalue: `stringify`/`uneval` serialize shared memory",
+      "published": "2026-10-01T15:18:06Z",
+      "aliases": [
+        "CVE-2026-92708"
+      ],
+      "cwe_ids": [
+        "CWE-200",
+        "CWE-226"
+      ],
+      "severity": "HIGH",
+      "fix_commit_url": "https://github.com/sveltejs/devalue/commit/46dc877b3570dafb1cd3291b9bb48cecef8f7266",
+      "source_refs": [
+        "https://github.com/sveltejs/devalue/commit/46dc877b3570dafb1cd3291b9bb48cecef8f7266"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Impact\n\n`stringify` and `uneval` serialize a typed array by emitting its backing `ArrayBuffer`, not just the view. In the case of a Node `Buffer` object, the backing buffer is a process-wide shared pool, meaning unrelated memory can be serialized into a response that is then sent to the client. For a Node `Buffer` the backing store is Node's **process-wide shared pool**, so serializing a small `Buffer` copies up to 64 KB of unrelated process memory — including bytes from other in-flight requests — into the output. In an SSR framework (SvelteKit, Nuxt) a public page whose `load()` returns a 2-byte `Buffer`, or a small file read with `readFileSync`, ships another user's request body / `Authorization` header in its HTML. Unauthenticated, silent, ~43,000× amplification.\n\nThis is serialization-side, so the `parse`/`unflatten` prototype-pollution and DoS guards do not apply — it fires on every SSR render, not only when parsing untrusted input.\n\n### Workarounds\n\nConvert Node `Buffer` objects to `Uint8Array`:\n\n```diff\npayload = {\n- buffer\n+ buffer: new Uint8Array(buffer)\n}\n```",
+      "screening": {
+        "diff": {
+          "counts": {
+            "docs": 2,
+            "source": 4,
+            "test": 2
+          },
+          "source_files": [
+            "src/operations.js",
+            "src/types.d.ts",
+            "src/uneval.js",
+            "src/utils.js"
+          ],
+          "test_files": [
+            "test/buffer.test.js",
+            "test/operations.test.js"
+          ],
+          "source_lines": 40,
+          "source_dirs": [
+            "src"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 7,
+          "has_dockerfile": false
+        },
+        "score": 48,
+        "fix_commit_date": "2026-09-18"
+      }
+    },
+    {
+      "osv_id": "GHSA-mcm9-63f2-9j32",
+      "cve_id": null,
+      "ecosystem": "npm",
+      "package": "devalue",
+      "repo_url": "https://github.com/sveltejs/devalue",
+      "pre_patch_commit": "6861dbbb7e548849e48bce718e88747a298f7250",
+      "fixed_commit": "84f6f67999104e36940f744bec0443536de1b463",
+      "summary": "devalue: Repeated primitive strings cause quadratic expansion in uneval",
+      "published": "2026-10-01T15:17:29Z",
+      "aliases": [],
+      "cwe_ids": [
+        "CWE-400",
+        "CWE-409"
+      ],
+      "severity": "HIGH",
+      "fix_commit_url": "https://github.com/sveltejs/devalue/commit/84f6f67999104e36940f744bec0443536de1b463",
+      "source_refs": [
+        "https://github.com/sveltejs/devalue/commit/84f6f67999104e36940f744bec0443536de1b463"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "Under very constrained circumstances, data that was `parse`d and then passed to `uneval` could turn a small payload into a very large serialized string.",
+      "screening": {
+        "diff": {
+          "counts": {
+            "docs": 1,
+            "source": 3,
+            "test": 1
+          },
+          "source_files": [
+            "benchmarking/benchmarks/uneval.js",
+            "benchmarking/run.js",
+            "src/uneval.js"
+          ],
+          "test_files": [
+            "test/uneval-primitives.test.js"
+          ],
+          "source_lines": 141,
+          "source_dirs": [
+            "benchmarking",
+            "benchmarking/benchmarks",
+            "src"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 6,
+          "has_dockerfile": false
+        },
+        "score": 48,
+        "fix_commit_date": "2026-09-18"
+      }
+    },
+    {
+      "osv_id": "GHSA-x6jw-m9v5-85vh",
+      "cve_id": "CVE-2026-102828",
+      "ecosystem": "npm",
+      "package": "simple-git",
+      "repo_url": "https://github.com/steveukx/git-js",
+      "pre_patch_commit": "76f308ed445013d8dd973bc515e7815b59426e3e",
+      "fixed_commit": "d762810c13b331ff1e5eb24c0b434646d2a8d1b3",
+      "summary": "simple-git unsafe-operation guard does not block trailer command configuration",
+      "published": "2026-10-05T23:48:14Z",
+      "aliases": [
+        "CVE-2026-102828"
+      ],
+      "cwe_ids": [
+        "CWE-78",
+        "CWE-184"
+      ],
+      "severity": "CRITICAL",
+      "fix_commit_url": "https://github.com/steveukx/git-js/commit/d762810c13b331ff1e5eb24c0b434646d2a8d1b3",
+      "source_refs": [
+        "https://github.com/steveukx/git-js/commit/d762810c13b331ff1e5eb24c0b434646d2a8d1b3"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "## Affected product\n\nThe default `blockUnsafeOperationsPlugin` in `simple-git` when an application permits untrusted values to reach `SimpleGitOptions.config` or Git inline configuration arguments such as `-c <key>=<value>`.\n\n## Summary\n\n`trailer.<token>.cmd` is not recognized as unsafe by the default guard. Therefore, a configured inline value reaches Git without a `GitPluginError`.\n\nGit documents `trailer.<token>.cmd` as a shell command invoked by `git interpret-trailers`. An application that relies on the default plugin to reject unsafe configuration can therefore execute a command supplied through an untrusted trailer-command configuration value.\n\n## Technical details\n\n`simple-git/src/lib/git-factory.ts` installs `commandConfigPrefixingPlugin` before `blockUnsafeOperationsPlugin`. The prefixing plugin in `simple-git/src/lib/plugins/command-config-prefixing-plugin.ts` turns every `SimpleGitOptions.config` entry into `-c <key>=<value>` before the unsafe-operation plugin evaluates the final argv.\n\nIn `simple-git@3.36.0`, `blockUnsafeOperationsPlugin` delegates to `@simple-git/argv-parser`. `packages/argv-parser/src/vulnerabilities/detect-vulnerable-config-writes.ts` compares parsed configuration writes against `preventUnsafeConfig`. That list has no matcher for `trailer.<token>.cmd`, so the invocation is allowed.\n\nGit v2.39.5's `Documentation/git-interpret-trailers.txt` states that `trailer.<token>.cmd` specifies a shell command called to generate or modify a trailer.\n\n## Preconditions\n\nThe application must use an affected `simple-git` version with the default unsafe-operation plugin active and must pass attacker-controlled data into instance configuration or Git command arguments that configure `trailer.<token>.cmd`.\n\nThe invoked Git binary must support the documented trailer-command behavior, and the application must execute `git interpret-trailers` with the attacker-controlled configuration in scope. The command runs with the operating-system identity and permis",
+      "screening": {
+        "diff": {
+          "counts": {
+            "docs": 3,
+            "source": 3,
+            "test": 2
+          },
+          "source_files": [
+            "packages/argv-parser/src/tokens/flag-specs.ts",
+            "packages/argv-parser/src/vulnerabilities/detect-vulnerable-config-writes.ts",
+            "packages/argv-parser/src/vulnerabilities/detect-vulnerable-flags.ts"
+          ],
+          "test_files": [
+            "packages/argv-parser/test/vulnerability-analysis.spec.ts",
+            "simple-git/test/unit/vulnerabilities/rebase-exec.spec.ts"
+          ],
+          "source_lines": 20,
+          "source_dirs": [
+            "packages/argv-parser/src/tokens",
+            "packages/argv-parser/src/vulnerabilities"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 112,
+          "has_dockerfile": false
+        },
+        "score": 43,
+        "fix_commit_date": "2026-09-25"
+      }
+    },
+    {
+      "osv_id": "GHSA-xw65-4hp5-5hc7",
+      "cve_id": "CVE-2026-106444",
+      "ecosystem": "npm",
+      "package": "handlebars",
+      "repo_url": "https://github.com/handlebars-lang/handlebars.js",
+      "pre_patch_commit": "ceec388abe1d1aac8f6369860d5f390fa71ef4fa",
+      "fixed_commit": "609d1b11c833c9a3e00f56f2f34d22f425446725",
+      "summary": "Handlebars: JavaScript Injection via Unsafe Inline Embedding of Precompiled Templates",
+      "published": "2026-10-08T17:52:37Z",
+      "aliases": [
+        "CVE-2026-106444"
+      ],
+      "cwe_ids": [
+        "CWE-116"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/handlebars-lang/handlebars.js/commit/609d1b11c833c9a3e00f56f2f34d22f425446725",
+      "source_refs": [
+        "https://github.com/handlebars-lang/handlebars.js/commit/609d1b11c833c9a3e00f56f2f34d22f425446725"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "## Summary\n\n`Handlebars.precompile()` generates JavaScript source that is commonly embedded in browser `<script>` elements. Before the fix, static template text containing `</script>` was emitted unchanged. HTML parsers recognize `</script>` even inside a JavaScript string literal, closing the surrounding script element and allowing following attacker-controlled markup to be parsed and executed.\n\nThis affects applications that precompile attacker-controlled templates and embed the generated source directly in an HTML `<script>` element. It does not affect ordinary server-side rendering or precompiled templates delivered as external JavaScript files.\n\n## Details\n\nStatic text is serialized by `quotedString()` in `lib/handlebars/compiler/code-gen.js`. The generated JavaScript is valid, but JavaScript quoting alone does not make it safe to embed in HTML. In HTML script data, the sequence `</script>` terminates the element regardless of JavaScript string context.\n\nOn affected releases, this template:\n\n```handlebars\nsafe</script><script>alert(\"XSS\")</script><script>\n```\n\ncould produce generated source containing:\n\n```js\nreturn 'safe</script><script>alert(\"XSS\")</script><script>';\n```\n\nWhen included inline in an HTML document, the first `</script>` closes the script containing the precompiled template. The next `<script>` element is then parsed as HTML and executes.\n\n## Proof of Concept\n\n```js\nconst Handlebars = require('handlebars');\n\nconst template = 'safe</script><script>alert(\"XSS\")</script><script>';\nconst output = Handlebars.precompile(template);\n\nconsole.log(output.includes('</script>'));\n```\n\nAffected versions print `true`. Embedding `output` directly in an inline `<script>` element allows the injected script tag to be parsed by the browser.\n\n## Workarounds\n\n- Do not inline precompiled output from untrusted templates into HTML documents.\n- Serve generated precompiled templates as external JavaScript files where practical.\n\n## Credits\n\nReported by Curly-Haired-Baboo",
+      "screening": {
+        "diff": {
+          "counts": {
+            "docs": 1,
+            "source": 3,
+            "test": 3
+          },
+          "source_files": [
+            "lib/handlebars/compiler/code-gen.js",
+            "lib/handlebars/compiler/javascript-compiler.js",
+            "lib/precompiler.js"
+          ],
+          "test_files": [
+            "spec/compiler.js",
+            "spec/precompiler.js",
+            "spec/security.js"
+          ],
+          "source_lines": 97,
+          "source_dirs": [
+            "lib",
+            "lib/handlebars/compiler"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 4,
+          "has_dockerfile": false
+        },
+        "score": 40,
+        "fix_commit_date": "2026-10-05"
+      }
+    },
+    {
+      "osv_id": "GHSA-p8wg-vrv2-v86f",
+      "cve_id": "CVE-2026-106445",
+      "ecosystem": "npm",
+      "package": "handlebars",
+      "repo_url": "https://github.com/handlebars-lang/handlebars.js",
+      "pre_patch_commit": "c28ee7adb312308e0fe26f4d435a481be5e1ff98",
+      "fixed_commit": "ceec388abe1d1aac8f6369860d5f390fa71ef4fa",
+      "summary": "Handlebars: JavaScript Injection via Own Property Check Bypass",
+      "published": "2026-10-08T17:52:26Z",
+      "aliases": [
+        "CVE-2026-106445"
+      ],
+      "cwe_ids": [
+        "CWE-184",
+        "CWE-1289"
+      ],
+      "severity": "CRITICAL",
+      "fix_commit_url": "https://github.com/handlebars-lang/handlebars.js/commit/ceec388abe1d1aac8f6369860d5f390fa71ef4fa",
+      "source_refs": [
+        "https://github.com/handlebars-lang/handlebars.js/commit/ceec388abe1d1aac8f6369860d5f390fa71ef4fa"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "## Summary\n\nHandlebars can expose the `Function` constructor despite its prototype-access deny list. When a template reaches `Function.prototype`, its own `constructor` property is returned before the deny list is checked. An attacker who can render a controlled template with `allowProtoMethodsByDefault: true` can inject and execute arbitrary JavaScript, leading to Remote Code Execution on the server.\n\n## Description\n\n`lookupProperty` trusts own properties:\n\n```js\nif (Object.prototype.hasOwnProperty.call(parent, propertyName)) {\n  return result;\n}\n```\n\nNormally, prototype-derived values reach `resultIsAllowed`, which blocks dangerous method names such as `constructor`. However, `constructor` is itself an own property of prototype objects:\n\n```js\nFunction.prototype.constructor === Function;\nString.prototype.constructor === String;\nObject.prototype.constructor === Object;\n```\n\nAs a result, once a template reaches `Function.prototype`, looking up `constructor` returns `Function` without consulting the deny list.\n\n## Proof of Concept\n\nAn attacker needs to reach any prototype object where constructor is an own property, then access constructor to obtain Function. The shortest path requires only an accessible function in the template context:\n\n1. Access a function's prototype: {{lookup myFunction \"proto\"}} resolves to Function.prototype. The proto property is not in the deny list and is permitted when allowProtoMethodsByDefault is true (since the result is a function).\n2. Access constructor via own property bypass: {{lookup (lookup myFunction \"\\_\\_proto__\") \"constructor\"}} resolves to Function. Because Function.prototype.constructor is an own property of Function.prototype, hasOwnProperty returns true and lookupProperty returns the value without calling resultIsAllowed. The deny list entry constructor: false is never evaluated.\n3. Construct and execute arbitrary code: The attacker uses Function to create a function with attacker-controlled body content and triggers its ex",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 3,
+            "test": 2
+          },
+          "source_files": [
+            "lib/handlebars/internal/proto-access.js",
+            "lib/handlebars/runtime.js",
+            "lib/handlebars/utils.js"
+          ],
+          "test_files": [
+            "spec/security.js",
+            "spec/utils.js"
+          ],
+          "source_lines": 40,
+          "source_dirs": [
+            "lib/handlebars",
+            "lib/handlebars/internal"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 4,
+          "has_dockerfile": false
+        },
+        "score": 40,
+        "fix_commit_date": "2026-10-05"
+      }
+    },
+    {
+      "osv_id": "GHSA-r4xh-jqrq-34v2",
+      "cve_id": null,
+      "ecosystem": "npm",
+      "package": "smol-toml",
+      "repo_url": "https://github.com/squirrelchat/smol-toml",
+      "pre_patch_commit": "189b15b198a82923ae2ca6b4df56de92614ef8bf",
+      "fixed_commit": "99102aa57fc932f760ea9c15b4cf1c181f952d24",
+      "summary": "smol-toml: Quadratic-time parse() from parseKey rescanning to end of document on each key line",
+      "published": "2026-10-05T23:41:14Z",
+      "aliases": [],
+      "cwe_ids": [
+        "CWE-407"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/squirrelchat/smol-toml/commit/99102aa57fc932f760ea9c15b4cf1c181f952d24",
+      "source_refs": [
+        "https://github.com/squirrelchat/smol-toml/commit/99102aa57fc932f760ea9c15b4cf1c181f952d24"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Summary\n\n`parse()` has a quadratic-time path in `parseKey`, reachable on default options with ordinary valid input. For every key line and table-header line, `parseKey` (dist/struct.js, lines 58 and 86) finds the dotted-key separator with `ctx.s.indexOf('.', ctx.p)`, where `ctx.s` is the whole document. When a key has no `.` ahead of it, that search runs all the way to the end of the input, and the result is then clamped back to the line terminator `endPtr` - so everything scanned past the current line is wasted. `parseKey` runs once per line, so a document of N dot-free keys costs O(n^2).\n\nThe most ordinary TOML shape triggers it: a flat list of `key = value` lines, or a repeated `[[a]]` table. No dotted keys, no special options, valid input throughout.\n\n### Proof of concept\n\n```js\nimport { parse } from 'smol-toml'\n\nlet doc = ''\nfor (let i = 0; i < 256000; i++) doc += 'k' + i + ' = 1\\n'\n\nconsole.time('parse')\nparse(doc) // ~2.8 MB of valid TOML, default options\nconsole.timeEnd('parse')\n```\n\nDoubling the line count roughly quadruples the time:\n\n| lines | size | parse() |\n|---|---|---|\n| 32k | 0.3 MB | 0.3 s |\n| 64k | 0.7 MB | 1.0 s |\n| 128k | 1.4 MB | 3.5 s |\n| 256k | 2.8 MB | 14 s |\n\n### Impact\nAny service that runs `parse()` on attacker-supplied TOML can be stalled. The work is synchronous, so it blocks the whole event loop, and the quadratic is unbounded: a ~7 MB body pins a core for about a minute, larger bodies for several.\n\n### Patches\nVersion 1.9.0 uses a different implementation for parsing keys which is strictly linear.\n\n### Workarounds\nLimit the maximum document size accepted when parsing arbitrary documents.",
+      "screening": {
+        "diff": {
+          "counts": {
+            "manifest": 1,
+            "source": 3,
+            "test": 1
+          },
+          "source_files": [
+            "src/parse.ts",
+            "src/struct.ts",
+            "src/util.ts"
+          ],
+          "test_files": [
+            "test/util.test.ts"
+          ],
+          "source_lines": 121,
+          "source_dirs": [
+            "src"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 12,
+          "has_dockerfile": false
+        },
+        "score": 38,
+        "fix_commit_date": "2026-09-15"
+      }
+    },
+    {
+      "osv_id": "GHSA-j6r3-76f7-8jcv",
+      "cve_id": "CVE-2026-101912",
+      "ecosystem": "npm",
+      "package": "ip-address",
+      "repo_url": "https://github.com/beaugunderson/ip-address",
+      "pre_patch_commit": "4c2184a0cbd8f913e15a64a2063afc9eef410bd2",
+      "fixed_commit": "1343629d57fea413644a5c9d41ff1e59619f3f28",
+      "summary": "ip-address: isInSubnet() and isHostInSubnet() compare addresses of different families as if they shared an address space, allowing an allowlist check to admit an address outside its range",
+      "published": "2026-09-29T23:46:52Z",
+      "aliases": [
+        "CVE-2026-101912"
+      ],
+      "cwe_ids": [
+        "CWE-697",
+        "CWE-843"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/beaugunderson/ip-address/commit/1343629d57fea413644a5c9d41ff1e59619f3f28",
+      "source_refs": [
+        "https://github.com/beaugunderson/ip-address/commit/1343629d57fea413644a5c9d41ff1e59619f3f28"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Summary\n\n`isInSubnet()` and `isHostInSubnet()` accept an address of either family and compare masked binary strings without checking that both operands are the same family. `Address4` pads to 32 bits and `Address6` to 128, so whenever the leading bits agree the strings are equal: `new Address6('a00::1').isInSubnet(new Address4('10.0.0.0/8'))` is `true`, and `new Address4('32.0.0.1').isInSubnet(new Address6('2000::/3'))` is `true`. No IPv4 address is inside an IPv6 network, so both answers are untrue.\n\nAn application that parses untrusted input as whichever family accepts it and then tests the result against a fixed-family allowlist can admit an address outside the list.\n\n### Details\n\nBoth methods are in `src/common.ts`:\n\n```ts\nexport function isInSubnet(this: Address4 | Address6, address: Address4 | Address6) {\n  if (this.subnetMask < address.subnetMask) {\n    return false;\n  }\n\n  return isHostInSubnet.call(this, address);\n}\n\nexport function isHostInSubnet(this: Address4 | Address6, address: Address4 | Address6) {\n  return this.mask(address.subnetMask) === address.mask();\n}\n```\n\n`mask(n)` returns the first `n` bits of the address as a string of `0` and `1`, taken from a representation padded to the family's width. `new Address6('a00::1').mask(8)` is `'00001010'`, and so is `new Address4('10.0.0.0/8').mask()`, so string equality reports containment. The signature admits either family on either side, so TypeScript raises nothing, and the `v4` property on `Address6` marks IPv4 notation (`::ffff:10.0.0.1`) rather than family, so it does not discriminate either.\n\nWhich cross-family pairs coincide depends on the network's prefix length. `mask(n)` on an `Address4` returns at most 32 bits, so an IPv6 network longer than `/32` never matches an IPv4 address, and an IPv6 network of `/32` or shorter matches exactly the IPv4 addresses whose leading bits equal its prefix. An IPv4 network is at most 32 bits and matches every IPv6 address whose leading bits equal its prefix.\n\n#",
+      "screening": {
+        "diff": {
+          "counts": {
+            "docs": 1,
+            "source": 3,
+            "test": 1
+          },
+          "source_files": [
+            "src/common.ts",
+            "src/ipv4.ts",
+            "src/ipv6.ts"
+          ],
+          "test_files": [
+            "test/functionality-v6-test.ts"
+          ],
+          "source_lines": 25,
+          "source_dirs": [
+            "src"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 7,
+          "has_dockerfile": false
+        },
+        "score": 38,
+        "fix_commit_date": "2026-09-15"
+      }
+    },
+    {
+      "osv_id": "GHSA-68fv-2mgg-jv7q",
+      "cve_id": "CVE-2026-93749",
+      "ecosystem": "npm",
+      "package": "source-map-js",
+      "repo_url": "https://github.com/7rulnik/source-map-js",
+      "pre_patch_commit": "7899a86615c630f4fc220273ff9fe2e8e49a56df",
+      "fixed_commit": "cf7658058ceeaa8619d5ae0ec90be6905209d016",
+      "summary": "source-map-js allows event-loop denial of service through indexed source-map section offsets",
+      "published": "2026-09-18T18:31:44Z",
+      "aliases": [
+        "CVE-2026-93749"
+      ],
+      "cwe_ids": [
+        "CWE-1284"
+      ],
+      "severity": "HIGH",
+      "fix_commit_url": "https://github.com/7rulnik/source-map-js/commit/cf7658058ceeaa8619d5ae0ec90be6905209d016",
+      "source_refs": [
+        "https://github.com/7rulnik/source-map-js/commit/cf7658058ceeaa8619d5ae0ec90be6905209d016"
+      ],
+      "sources": [
+        "osv"
+      ],
+      "report_url": null,
+      "description": "source-map-js through 1.2.1 fails to validate the per-section offset line value in indexed source maps, allowing attackers to specify arbitrary numeric values. Attackers can supply extremely large offset line values that cause synchronous event loop blocking for extended periods, preventing the service from handling other requests.",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 3,
+            "test": 3
+          },
+          "source_files": [
+            "lib/source-map-consumer.js",
+            "lib/source-map-generator.js",
+            "lib/source-node.js"
+          ],
+          "test_files": [
+            "test/test-source-map-consumer.js",
+            "test/test-source-map-generator.js",
+            "test/test-source-node.js"
+          ],
+          "source_lines": 71,
+          "source_dirs": [
+            "lib"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 13,
+          "has_dockerfile": false
+        },
+        "score": 38,
+        "fix_commit_date": "2026-09-30"
+      }
+    },
+    {
+      "osv_id": "GHSA-24ch-f2g6-9hhh",
+      "cve_id": "CVE-2026-107298",
+      "ecosystem": "npm",
+      "package": "msgpack5",
+      "repo_url": "https://github.com/mcollina/msgpack5",
+      "pre_patch_commit": "20e82600ac9462e679c8a45e5723315f21e2c774",
+      "fixed_commit": "1e2b5874e555dd7c99417f64788a03b0590bb102",
+      "summary": "msgpack5: Deeply nested input can exhaust the decoder stack",
+      "published": "2026-10-08T17:39:51Z",
+      "aliases": [
+        "CVE-2026-107298"
+      ],
+      "cwe_ids": [
+        "CWE-674"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/mcollina/msgpack5/commit/1e2b5874e555dd7c99417f64788a03b0590bb102",
+      "source_refs": [
+        "https://github.com/mcollina/msgpack5/commit/1e2b5874e555dd7c99417f64788a03b0590bb102"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Impact\n\nThe decoder has no nesting-depth limit for arrays and maps. An attacker who can provide MessagePack input can use deeply nested containers to exhaust the JavaScript call stack and interrupt the process or request handler.\n\n### Patches\n\nThe decoder now limits nesting depth to 100 by default and throws `Maximum decode depth exceeded`. Applications can configure the limit with the `maxDepth` option.\n\n### Workarounds\n\nReject deeply nested input before decoding, isolate decoding in a worker, or enforce a trusted schema with a bounded nesting depth.",
+      "screening": {
+        "diff": {
+          "counts": {
+            "docs": 1,
+            "generated": 2,
+            "source": 2,
+            "test": 1
+          },
+          "source_files": [
+            "index.js",
+            "lib/decoder.js"
+          ],
+          "test_files": [
+            "test/max-depth.js"
+          ],
+          "source_lines": 40,
+          "source_dirs": [
+            ".",
+            "lib"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 55,
+          "has_dockerfile": false
+        },
+        "score": 33,
+        "fix_commit_date": "2026-09-26"
+      }
+    },
+    {
+      "osv_id": "GHSA-v247-6f48-mgcj",
+      "cve_id": "CVE-2026-102999",
+      "ecosystem": "PyPI",
+      "package": "pypdf",
+      "repo_url": "https://github.com/py-pdf/pypdf",
+      "pre_patch_commit": "3a1111d65ce463d03d9d0b7eaf731d7b993ba3d1",
+      "fixed_commit": "6b10556d13609a68f9ed18bb29fdd8bba88eb2c3",
+      "summary": "pypdf: Possible long runtimes with large amount of embedded files",
+      "published": "2026-10-01T15:07:35Z",
+      "aliases": [
+        "CVE-2026-102999"
+      ],
+      "cwe_ids": [
+        "CWE-400",
+        "CWE-407"
+      ],
+      "severity": "HIGH",
+      "fix_commit_url": "https://github.com/py-pdf/pypdf/commit/6b10556d13609a68f9ed18bb29fdd8bba88eb2c3",
+      "source_refs": [
+        "https://github.com/py-pdf/pypdf/commit/6b10556d13609a68f9ed18bb29fdd8bba88eb2c3"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Impact\n\nAn attacker who uses this vulnerability can craft a PDF which leads to long runtimes. This requires accessing the embedded files through the dictionary-based API.\n\n### Patches\n\nThis has been fixed in [pypdf==6.19.0](https://github.com/py-pdf/pypdf/releases/tag/6.19.0).\n\n### Workarounds\n\nIf you cannot upgrade yet, consider applying the changes from PR [#4081](https://github.com/py-pdf/pypdf/pull/4081).",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 2,
+            "test": 2
+          },
+          "source_files": [
+            "pypdf/_doc_common.py",
+            "pypdf/generic/_files.py"
+          ],
+          "test_files": [
+            "tests/test_doc_common.py",
+            "tests/test_writer.py"
+          ],
+          "source_lines": 93,
+          "source_dirs": [
+            "pypdf",
+            "pypdf/generic"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "pyproject.toml"
+          ],
+          "test_files_in_repo": 40,
+          "has_dockerfile": false
+        },
+        "score": 33,
+        "fix_commit_date": "2026-09-14"
+      }
+    },
+    {
+      "osv_id": "GHSA-p634-w6r4-rjp2",
+      "cve_id": null,
+      "ecosystem": "npm",
+      "package": "adm-zip",
+      "repo_url": "https://github.com/cthackers/adm-zip",
+      "pre_patch_commit": "491600683dacb6cb9fe0718a0eeb9cb5eb49afa6",
+      "fixed_commit": "05101d47b3b983b705cc3e66fc34366118ba7b99",
+      "summary": "adm-zip: Duplicate ZIP entry names: getEntry() and extractAllTo() resolve to different content",
+      "published": "2026-09-29T23:11:01Z",
+      "aliases": [],
+      "cwe_ids": [
+        "CWE-436",
+        "CWE-696"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/cthackers/adm-zip/commit/05101d47b3b983b705cc3e66fc34366118ba7b99",
+      "source_refs": [
+        "https://github.com/cthackers/adm-zip/commit/05101d47b3b983b705cc3e66fc34366118ba7b99"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Summary\n\nA ZIP file can contain two entries with the identical name. adm-zip keeps both in its internal entry list, but its name-lookup table only retains the last one written. `getEntry(name)` and `extractAllTo()` walk these two different internal structures, so they can each resolve a duplicate name to a *different* entry. An application that validates a named entry's contents via `getEntry()` before trusting an archive, then extracts the whole archive, can end up approving one file's content while a different file's bytes are what actually land on disk under that name.\n\n### Details\n- `zipFile.js:58-83` retains both entries in `entryList` but overwrites `entryTable[name]` with only the last one written.\n- `adm-zip.js:83-95,658-663` uses `entryTable` for `getEntry()` lookups — returns the *last* duplicate.\n- `adm-zip.js:769-914` iterates `entryList` for extraction — writes the *first* duplicate (sync, default overwrite policy).\n\n\n### PoC\n```js\nconst AdmZip = require('adm-zip');\nconst z = new AdmZip({ noSort: true });\nz.addFile('a.txt', Buffer.from('FIRST'));\nz.addFile('b.txt', Buffer.from('SECOND'));\nconst raw = Buffer.from(z.toBuffer());\n// rename the a.txt entry to b.txt directly in the raw bytes\nfor (let at = raw.indexOf('a.txt'); at >= 0; at = raw.indexOf('a.txt', at + 5)) {\n  raw.write('b.txt', at);\n}\nconst parsed = new AdmZip(raw, { noSort: true });\nconst validated = parsed.getEntry('b.txt').getData().toString();\nparsed.extractAllTo(outDir, false);\n// validated === \"SECOND\", but the file written to disk === \"FIRST\"\n```\n\nReproduced on the pinned commit (`2b4d84087d45344643e0183756e19191d52815cc`)\n\n### Impact\nAn application that checks a named entry's content before trusting an untrusted ZIP, then extracts it, can be made to approve different bytes than what actually gets written to disk — the classic check/use split that this kind of validate-then-extract pattern relies on.",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 2
+          },
+          "source_files": [
+            "util/errors.js",
+            "zipFile.js"
+          ],
+          "test_files": [],
+          "source_lines": 11,
+          "source_dirs": [
+            ".",
+            "util"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 21,
+          "has_dockerfile": false
+        },
+        "score": 33,
+        "fix_commit_date": "2026-09-11"
+      }
+    },
+    {
+      "osv_id": "GHSA-c6fg-446q-cg94",
+      "cve_id": null,
+      "ecosystem": "npm",
+      "package": "adm-zip",
+      "repo_url": "https://github.com/cthackers/adm-zip",
+      "pre_patch_commit": "6a63c339b83c52915483efacda517660a7a7bf87",
+      "fixed_commit": "491600683dacb6cb9fe0718a0eeb9cb5eb49afa6",
+      "summary": "adm-zip: getDataAsync() bypasses the maxOutputLength size guard enforced by the synchronous getData() path",
+      "published": "2026-09-29T23:10:32Z",
+      "aliases": [],
+      "cwe_ids": [
+        "CWE-400",
+        "CWE-770"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/cthackers/adm-zip/commit/491600683dacb6cb9fe0718a0eeb9cb5eb49afa6",
+      "source_refs": [
+        "https://github.com/cthackers/adm-zip/commit/491600683dacb6cb9fe0718a0eeb9cb5eb49afa6"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Summary\nadm-zip enforces a `maxOutputLength` guard against decompression bombs on its synchronous `getData()` path, but the equivalent asynchronous `getDataAsync()` path does not enforce it — it accumulates and returns the entire decompressed output regardless of the entry's declared size. An application that checks an entry's declared size before deciding to process it, then reads the entry via `getDataAsync()` (a completely ordinary, often-recommended choice for I/O in Node.js), gets none of the protection it believes it has.\n\n\n### Details\n\n- `methods/inflater.js:3-10` passes `{maxOutputLength: expectedLength}` to `inflateRawSync`, which Node enforces.\n- `methods/inflater.js:12-31` passes the same option to `createInflateRaw` but never enforces it on the streaming path — it just accumulates every chunk and allocates a final Buffer of whatever size resulted.\n\n\n### PoC\n\n```js\nconst AdmZip = require('adm-zip');\nconst zip = new AdmZip();\nzip.addFile('p', Buffer.alloc(64 * 1024 * 1024, 0x41)); // 64 MiB\nconst raw = Buffer.from(zip.toBuffer());\n// patch the local + central declared uncompressed size to 1 byte\nraw.writeUInt32LE(1, localHeaderSizeOffset);\nraw.writeUInt32LE(1, centralHeaderSizeOffset);\nconst entry = new AdmZip(raw).getEntry('p');\n\nentry.getData();\n// throws: ERR_BUFFER_TOO_LARGE: Cannot create a Buffer larger than 1 bytes\n\nentry.getDataAsync((data, error) => { ... });\n// returns the full 67,108,864-byte buffer, error is undefined\n```\n\n### Impact\nAn application that validates a declared size before reading an entry, then uses the async API, gets no protection against a high-ratio DEFLATE payload. Repeated or larger requests could contribute to memory exhaustion.",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 2
+          },
+          "source_files": [
+            "methods/inflater.js",
+            "util/errors.js"
+          ],
+          "test_files": [],
+          "source_lines": 33,
+          "source_dirs": [
+            "methods",
+            "util"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 21,
+          "has_dockerfile": false
+        },
+        "score": 33,
+        "fix_commit_date": "2026-09-11"
+      }
+    },
+    {
+      "osv_id": "GHSA-8238-w5pm-2374",
+      "cve_id": null,
+      "ecosystem": "npm",
+      "package": "adm-zip",
+      "repo_url": "https://github.com/cthackers/adm-zip",
+      "pre_patch_commit": "747060a7b6a20c677a8ef6c66c45f262de1f8e69",
+      "fixed_commit": "5e70d3a26097d68fa981c41f022c053117174e49",
+      "summary": "adm-zip: Unhandled error event in async DEFLATE decompression crashes Node.js process (DoS)",
+      "published": "2026-09-29T23:10:09Z",
+      "aliases": [],
+      "cwe_ids": [
+        "CWE-248",
+        "CWE-400"
+      ],
+      "severity": "HIGH",
+      "fix_commit_url": "https://github.com/cthackers/adm-zip/commit/5e70d3a26097d68fa981c41f022c053117174e49",
+      "source_refs": [
+        "https://github.com/cthackers/adm-zip/commit/5e70d3a26097d68fa981c41f022c053117174e49"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "## Summary\n\nDenial of Service in `adm-zip`'s async decompression API allows an unauthenticated attacker to crash the entire Node.js host process by supplying a single malformed ZIP file.\n\n## Details\n\n**Affected package**: adm-zip\n**Affected versions**: at least 0.6.0 (current latest); likely all versions containing the current `inflateAsync` implementation in `methods/inflater.js`\n**Patched version**: 0.6.1\n\n### Root Cause\n\n`methods/inflater.js:12-32` (`inflateAsync`) creates a `zlib.createInflateRaw(option)` stream and feeds it attacker-controlled compressed bytes via `tmp.end(inbuf)`, but never registers an `\"error\"` listener on the stream:\n\n```js\ninflateAsync: function (/*Function*/ callback) {\n    var tmp = zlib.createInflateRaw(option),\n        parts = [],\n        total = 0;\n    tmp.on(\"data\", function (data) { parts.push(data); total += data.length; });\n    tmp.on(\"end\", function () { /* build buf, callback(buf) */ });\n    tmp.end(inbuf);   // no tmp.on(\"error\", ...) registered anywhere\n}\n```\n\nPer Node.js `EventEmitter`/stream semantics, an `\"error\"` event emitted with zero listeners is rethrown as an **uncaught exception on a later tick**, originating from the zlib C++ binding. This cannot be caught by a `try/catch` wrapped around the calling code, because the throw happens asynchronously, outside the synchronous call stack the `try/catch` covers.\n\nThis code path is reached from every public async API that decompresses entry data: `readFileAsync`, `readAsTextAsync`, `extractAllToAsync`, and `ZipEntry.getDataAsync` (`zipEntry.js:51`, `:97-120`, `:309-315`; `adm-zip.js:157-164`, `:192-210`, `:893`).\n\nThis library recently patched **CVE-2026-39244** (GHSA-xcpc-8h2w-3j85), an unbounded `Buffer.alloc()` on the *synchronous* decompression path. That fix added a `maxOutputLength` option to `zlib.inflateRawSync`/`zlib.createInflateRaw`, and the sync path's resulting throw is naturally catchable. The async path shares the same `maxOutputLength` option (`methods/inflat",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 2
+          },
+          "source_files": [
+            "methods/inflater.js",
+            "zipEntry.js"
+          ],
+          "test_files": [],
+          "source_lines": 31,
+          "source_dirs": [
+            ".",
+            "methods"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 21,
+          "has_dockerfile": false
+        },
+        "score": 33,
+        "fix_commit_date": "2026-09-11"
+      }
+    },
+    {
+      "osv_id": "GHSA-68w4-83fh-f2w8",
+      "cve_id": null,
+      "ecosystem": "PyPI",
+      "package": "pyload-ng",
+      "repo_url": "https://github.com/pyload/pyload",
+      "pre_patch_commit": "5dc6b628e2d8b9f42dde82f396e5b7a2b513f6d1",
+      "fixed_commit": "b99d2a2f06135363ceb0aab16aac5025f138e658",
+      "summary": "pyload-ng: getUserData/get_userdata exposed at Perms.ANY allow any authenticated account to brute-force the administrator password",
+      "published": "2026-10-09T17:09:15Z",
+      "aliases": [],
+      "cwe_ids": [
+        "CWE-287"
+      ],
+      "severity": "HIGH",
+      "fix_commit_url": "https://github.com/pyload/pyload/commit/b99d2a2f06135363ceb0aab16aac5025f138e658",
+      "source_refs": [
+        "https://github.com/pyload/pyload/commit/b99d2a2f06135363ceb0aab16aac5025f138e658"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "## Summary\n\n`Api.getUserData` (legacy) and `Api.get_userdata` are declared with `@permission(Perms.ANY)` and are reachable at `/api/getUserData` and `/api/get_userdata`. Because `Perms.ANY == 0` and pyLoad's permission check is a bitmask AND, that gate is a no-op: **every authenticated account passes, including one holding zero permission bits.**\n\nBoth methods are thin wrappers around `check_auth()`, which the maintainers deliberately restricted to administrators by omitting `@permission` (no entry in `perm_map`, so `is_authorized()` returns `False` for non-admins). The wrappers undo that protection.\n\nAn attacker holding the lowest-privileged account in the system therefore has a clean binary oracle on the **administrator password**, with no account lockout anywhere in the codebase, and with the 100 req/min rate limiter bypassable by rotating `X-Forwarded-For`.\n\n## Affected code\n\n`src/pyload/core/api/__init__.py:1446` and `:1464`\n\n```python\n    #: Old API\n    @permission(Perms.ANY)\n    @get\n    def getUserData(self, username: str, password: str) -> OldUserData:\n        \"\"\"\n        similar to `check_auth` but returns UserData type.\n        \"\"\"\n        user = self.check_auth(username, password)\n        ...\n\n    @permission(Perms.ANY)\n    @get\n    def get_userdata(self, username: str, password: str) -> UserData:\n        user = self.check_auth(username, password)\n        ...\n```\n\n## Root cause\n\n`src/pyload/core/api/__init__.py:57`\n\n```python\nclass Perms(IntFlag):\n    ANY = 0  #: requires no permission, but login\n```\n\n`src/pyload/core/api/__init__.py:108`\n\n```python\ndef has_permission(user_perms: Perms, required_perms: Perms):\n    return required_perms == (user_perms & required_perms)\n```\n\nFor `required_perms == 0` this evaluates to `0 == (user_perms & 0)` → `0 == 0` → **always `True`**. The `@permission(Perms.ANY)` gate therefore admits every authenticated principal regardless of which permission bits they hold.\n\nContrast with the intended admin-only primitive, `src/pyl",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 2
+          },
+          "source_files": [
+            "src/pyload/core/api/__init__.py",
+            "src/pyload/core/database/user_database.py"
+          ],
+          "test_files": [],
+          "source_lines": 9,
+          "source_dirs": [
+            "src/pyload/core/api",
+            "src/pyload/core/database"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "pyproject.toml",
+            "setup.cfg",
+            "setup.py"
+          ],
+          "test_files_in_repo": 13,
+          "has_dockerfile": true
+        },
+        "score": 28,
+        "fix_commit_date": "2026-10-08"
+      }
+    },
+    {
+      "osv_id": "GHSA-gcx5-hxj7-gpqq",
+      "cve_id": "CVE-2026-107297",
+      "ecosystem": "npm",
+      "package": "msgpack5",
+      "repo_url": "https://github.com/mcollina/msgpack5",
+      "pre_patch_commit": "1e2b5874e555dd7c99417f64788a03b0590bb102",
+      "fixed_commit": "e4827641d3105e295cbbd56e9c5389978547eab4",
+      "summary": "msgpack5: Quadratic parsing in the streaming decoder",
+      "published": "2026-10-08T17:39:46Z",
+      "aliases": [
+        "CVE-2026-107297"
+      ],
+      "cwe_ids": [
+        "CWE-407"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/mcollina/msgpack5/commit/e4827641d3105e295cbbd56e9c5389978547eab4",
+      "source_refs": [
+        "https://github.com/mcollina/msgpack5/commit/e4827641d3105e295cbbd56e9c5389978547eab4"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Impact\n\nThe streaming decoder reparses an incomplete container from the beginning whenever another chunk arrives. A remote peer can split one valid MessagePack value across many small chunks, causing quadratic CPU usage and blocking the event loop.\n\n### Patches\n\nThe decoder now preserves incremental container state so completed elements are not parsed again when more input arrives.\n\n### Workarounds\n\nBuffer each complete MessagePack value before decoding it, or limit the number of chunks accepted for a single value.",
+      "screening": {
+        "diff": {
+          "counts": {
+            "generated": 2,
+            "source": 2,
+            "test": 1
+          },
+          "source_files": [
+            "lib/decoder.js",
+            "lib/streams.js"
+          ],
+          "test_files": [
+            "test/streams.js"
+          ],
+          "source_lines": 116,
+          "source_dirs": [
+            "lib"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 56,
+          "has_dockerfile": false
+        },
+        "score": 28,
+        "fix_commit_date": "2026-09-26"
+      }
+    },
+    {
+      "osv_id": "GHSA-r9w8-h9r3-54w4",
+      "cve_id": null,
+      "ecosystem": "npm",
+      "package": "devalue",
+      "repo_url": "https://github.com/sveltejs/devalue",
+      "pre_patch_commit": "dae8153e9d7541b975cc4018138d6cebec6c1199",
+      "fixed_commit": "8f8d78e173f8a00023d009c7677ccc600dee0b99",
+      "summary": "devalue: Custom ArrayBuffer revivers can bypass typed-array allocation validation",
+      "published": "2026-10-01T15:15:56Z",
+      "aliases": [],
+      "cwe_ids": [
+        "CWE-789",
+        "CWE-843"
+      ],
+      "severity": "HIGH",
+      "fix_commit_url": "https://github.com/sveltejs/devalue/commit/8f8d78e173f8a00023d009c7677ccc600dee0b99",
+      "source_refs": [
+        "https://github.com/sveltejs/devalue/commit/8f8d78e173f8a00023d009c7677ccc600dee0b99"
+      ],
+      "sources": [
+        "osv"
+      ],
+      "report_url": null,
+      "description": "Under very specific circumstances, `parse` could create massive ArrayBuffers with very small input. This required a malformed `ArrayBuffer` custom reviver.",
+      "screening": {
+        "diff": {
+          "counts": {
+            "docs": 1,
+            "source": 2,
+            "test": 1
+          },
+          "source_files": [
+            "src/operations.js",
+            "src/types.d.ts"
+          ],
+          "test_files": [
+            "test/parse-operations.test.js"
+          ],
+          "source_lines": 26,
+          "source_dirs": [
+            "src"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 6,
+          "has_dockerfile": false
+        },
+        "score": 28,
+        "fix_commit_date": "2026-09-18"
+      }
+    },
+    {
+      "osv_id": "GHSA-26wq-p25c-j6fv",
+      "cve_id": "CVE-2026-107299",
+      "ecosystem": "npm",
+      "package": "msgpack5",
+      "repo_url": "https://github.com/mcollina/msgpack5",
+      "pre_patch_commit": "77fbef144d05def5d16fc22c37caa64c0a7efeba",
+      "fixed_commit": "85da345bf1acc18ca441741e5cf4aa0ed0d69314",
+      "summary": "msgpack5: Reserved byte can cause unbounded stream buffering",
+      "published": "2026-10-08T17:40:01Z",
+      "aliases": [
+        "CVE-2026-107299"
+      ],
+      "cwe_ids": [
+        "CWE-228"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/mcollina/msgpack5/commit/85da345bf1acc18ca441741e5cf4aa0ed0d69314",
+      "source_refs": [
+        "https://github.com/mcollina/msgpack5/commit/85da345bf1acc18ca441741e5cf4aa0ed0d69314"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Impact\n\nThe reserved MessagePack byte `0xc1` is incorrectly treated as incomplete input. When it appears at the start of a decoder stream, all subsequent data is retained while the decoder waits for bytes that can never make the value valid, allowing memory exhaustion.\n\n### Patches\n\nThe decoder now rejects `0xc1` as invalid input. Streaming decoders release buffered input and stop after unrecoverable decoding errors.\n\n### Workarounds\n\nReject `0xc1` before streaming input to msgpack5, and enforce stream byte and time limits.",
+      "screening": {
+        "diff": {
+          "counts": {
+            "generated": 2,
+            "source": 2,
+            "test": 1
+          },
+          "source_files": [
+            "lib/decoder.js",
+            "lib/streams.js"
+          ],
+          "test_files": [
+            "test/reserved-byte.js"
+          ],
+          "source_lines": 5,
+          "source_dirs": [
+            "lib"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 54,
+          "has_dockerfile": false
+        },
+        "score": 23,
+        "fix_commit_date": "2026-09-26"
+      }
+    },
+    {
+      "osv_id": "GHSA-pqg4-j6r4-53mv",
+      "cve_id": "CVE-2026-102422",
+      "ecosystem": "npm",
+      "package": "shell-quote",
+      "repo_url": "https://github.com/ljharb/shell-quote",
+      "pre_patch_commit": "36f23944db50dd3f0df4da9c7cba0bb63df05f64",
+      "fixed_commit": "6002b2ed90c6b83095eb272b6b0adaf3a172b0bc",
+      "summary": "shell-quote: `quote()` command injection via a line terminator in a token after a `{ comment }` token",
+      "published": "2026-10-06T13:40:36Z",
+      "aliases": [
+        "CVE-2026-102422"
+      ],
+      "cwe_ids": [
+        "CWE-78"
+      ],
+      "severity": "CRITICAL",
+      "fix_commit_url": "https://github.com/ljharb/shell-quote/commit/6002b2ed90c6b83095eb272b6b0adaf3a172b0bc",
+      "source_refs": [
+        "https://github.com/ljharb/shell-quote/commit/6002b2ed90c6b83095eb272b6b0adaf3a172b0bc"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Impact\n\n`quote()` emits a `{ comment }` token as `#` followed by its text, which comments out the rest of the shell line, including the opening quote of any later string token. A line terminator in that later string ends the comment, and the rest of the string is parsed as shell input:\n\n```js\nquote(['echo', 'ok', { comment: 'x' }, 'a\\nid;#']);\n// echo ok #x 'a\n// id;#'\n```\n\nPassed to `sh`, `bash`, `dash`, `ksh`, or `zsh`, this runs `id`.\n\n`parse()` emits a comment token for a `#` in the middle of a word (for example `http://example.com/#frag`), so callers that combine `parse()` output with another untrusted string, such as `quote(parse(untrustedCommand).concat(untrustedArg))`, are affected. The fix for CVE-2026-9277 rejected line terminators in the comment's own text, but not in the tokens after it.\n\nExploitation requires an attacker-controlled string containing a line terminator that follows a `{ comment }` token in the same `quote()` call.\n\n### Patches\n\nFixed in v1.11.0: `quote()` throws a `TypeError` when a string after a `{ comment }` token contains a line terminator (`\\n`, `\\r`, U+2028, or U+2029).\n\n### Workarounds\n\nDrop every token after a `{ comment }` token before calling `quote()`, or reject line terminators in untrusted strings. Separately, do not append other shell text after `quote()` output that contains a comment, since the comment swallows it.",
+      "screening": {
+        "diff": {
+          "counts": {
+            "docs": 1,
+            "source": 2,
+            "test": 1
+          },
+          "source_files": [
+            "quote.d.ts",
+            "quote.js"
+          ],
+          "test_files": [
+            "test/quote.js"
+          ],
+          "source_lines": 8,
+          "source_dirs": [
+            "."
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 7,
+          "has_dockerfile": false
+        },
+        "score": 23,
+        "fix_commit_date": "2026-09-27"
+      }
+    },
+    {
+      "osv_id": "GHSA-x937-hj6v-793p",
+      "cve_id": "CVE-2026-107719",
+      "ecosystem": "npm",
+      "package": "fast-jwt",
+      "repo_url": "https://github.com/nearform/fast-jwt",
+      "pre_patch_commit": "e7fe8b0d19edeb176faf3b18b56643f51177ef57",
+      "fixed_commit": "fc1ddbbe5ce38066ba2cea0b0ce0233932757167",
+      "summary": "fast-jwt: Verifier cache accepts expired JWTs without iat.",
+      "published": "2026-10-08T22:10:35Z",
+      "aliases": [
+        "CVE-2026-107719"
+      ],
+      "cwe_ids": [
+        "CWE-613"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/nearform/fast-jwt/commit/fc1ddbbe5ce38066ba2cea0b0ce0233932757167",
+      "source_refs": [
+        "https://github.com/nearform/fast-jwt/commit/fc1ddbbe5ce38066ba2cea0b0ce0233932757167"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Summary\n`cacheSet` only derives its `exp` cache deadline inside `hasIat` (`src/verifier.js:127-140`). JWT `iat` is optional. For a valid token with `exp` but no `iat`, `cacheSet` substitutes `clockTimestamp + clockTolerance + cacheTTL` (`src/verifier.js:142-146`). Later, the cache path returns the saved payload before decoding or invoking `verifyToken` (`src/verifier.js:372-388`). Since expiration validation is in `verifyToken`, the expired token remains accepted until the cache deadline.\n\n### Details\nThe bug is an expiration-check bypass caused by caching.\n\nNormally, verification works like this:\n\n  1. Verify signature.\n  2. Check exp against the current time.\n  3. Return the JWT claims.\n\nWith caching enabled, `fast-jwt` saves successful verification results so it can avoid repeating crypto work for the same token.\n\nThe intended invariant is:\n\n  > A cached token must stop being accepted at the same time as a non-cached token.\n\nBut the cache computes its expiration incorrectly.\n\nIn `fast-jwt/src/verifier.js:127`, the code first checks whether the payload has an iat (“issued at”) claim:\n\n```js\nconst hasIat = payload && typeof payload.iat === 'number'\n\nif (hasIat) {\n  if (!ignoreExpiration && typeof payload.exp === 'number') {\n    cacheValue[2] = payload.exp * 1000 + clockTolerance\n  }\n}\n```\n\nThat means `exp` is considered only when `iat` exists.\n\nHowever, `iat` is optional in JWT. A perfectly valid JWT may contain:\n\n```js\n{\n    \"sub\": \"alice\",\n    \"exp\": 1700000001\n}\n```\nwith no iat.\n\nFor that token, the expiration-based cache deadline is never set. The code falls back to the generic cache TTL—10 minutes by default:\n\n```js\nconst maxTTL = clockTimestamp + clockTolerance + cacheTTL\ncacheValue[2] = cacheValue[2] === 0 ? maxTTL : Math.min(cacheValue[2], maxTTL)\n```\n\nLater, cache lookup happens before decoding and expiration validation:\n\n```js\nconst [value, min, max] = cache.get(cacheKeyBuilder(token)) || [undefined, 0, 0]\n\nif (typeof value !== 'undefined' && (max ===",
+      "screening": {
+        "diff": {
+          "counts": {
+            "docs": 1,
+            "source": 1,
+            "test": 1
+          },
+          "source_files": [
+            "src/verifier.js"
+          ],
+          "test_files": [
+            "test/verifier.spec.js"
+          ],
+          "source_lines": 33,
+          "source_dirs": [
+            "src"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 8,
+          "has_dockerfile": false
+        },
+        "score": 18,
+        "fix_commit_date": "2026-10-04"
+      }
+    },
+    {
+      "osv_id": "GHSA-77xj-x4rm-935c",
+      "cve_id": "CVE-2026-107377",
+      "ecosystem": "PyPI",
+      "package": "datamodel-code-generator",
+      "repo_url": "https://github.com/datamodel-code-generator/datamodel-code-generator",
+      "pre_patch_commit": "834731d56c0a90c182a0919f316069cf5ff0659a",
+      "fixed_commit": "5e94b8f4203198798ec66b8e48217f70af69a0dc",
+      "summary": "datamodel-code-generator: Protobuf weak-import path traversal allows files to be written outside the temporary directory",
+      "published": "2026-10-08T17:58:01Z",
+      "aliases": [
+        "CVE-2026-107377"
+      ],
+      "cwe_ids": [
+        "CWE-22",
+        "CWE-73"
+      ],
+      "severity": "HIGH",
+      "fix_commit_url": "https://github.com/datamodel-code-generator/datamodel-code-generator/commit/5e94b8f4203198798ec66b8e48217f70af69a0dc",
+      "source_refs": [
+        "https://github.com/datamodel-code-generator/datamodel-code-generator/commit/5e94b8f4203198798ec66b8e48217f70af69a0dc"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "## Summary\n\nWhen processing an attacker-controlled Protobuf schema, vulnerable versions of\n`datamodel-code-generator` could write a generated weak-import stub outside the\nintended `__weak_imports__` temporary directory. Absolute import paths and relative\npaths containing `..` could escape this directory.\n\nAn attacker could create directories and new files at locations writable by the\nprocess. Relative path traversal could also overwrite existing writable files\nbecause the existence check and the stub write used different base directories.\nAn existing absolute target was skipped by the existence check.\n\nWritten content was limited to a generated Protobuf syntax declaration,\n`syntax = \"proto2\";` or `syntax = \"proto3\";`, followed by a newline. This issue did\nnot provide fully attacker-controlled file contents, and direct arbitrary code\nexecution has not been demonstrated.\n\nThese filesystem side effects occurred before `protoc` ran. A subsequent\ncompilation error did not undo them. A user or CI job must process the\nattacker-controlled schema for the issue to be triggered, whether the schema is\nsupplied as a local file or fetched via `--url`.\n\nThe fix has been merged into the parent repository's `main` branch in\n[5e94b8f](https://github.com/datamodel-code-generator/datamodel-code-generator/commit/5e94b8f4203198798ec66b8e48217f70af69a0dc). A patched package release is not yet available.\nThe technical details and PoC below describe the vulnerable implementation before\nthat fix.\n\n## Affected component\n\n- Repository: `datamodel-code-generator/datamodel-code-generator` (formerly `koxudaxi/datamodel-code-generator`).\n- Analyzed at: released **0.80.0** (`pip install datamodel-code-generator==0.80.0`) and `main` @ commit `834731d56c0a90c182a0919f316069cf5ff0659a` (2026-09-13). Both contained the identical vulnerable sink.\n- Sink / entry point (`src/datamodel_code_generator/parser/protobuf.py`, line numbers from 0.80.0):\n  - Source: `WEAK_IMPORT_PATTERN` (`protobuf.py:37`) — atta",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 1,
+            "test": 1
+          },
+          "source_files": [
+            "src/datamodel_code_generator/parser/protobuf.py"
+          ],
+          "test_files": [
+            "tests/main/protobuf/test_main_protobuf.py"
+          ],
+          "source_lines": 31,
+          "source_dirs": [
+            "src/datamodel_code_generator/parser"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "pyproject.toml"
+          ],
+          "test_files_in_repo": 166,
+          "has_dockerfile": true
+        },
+        "score": 18,
+        "fix_commit_date": "2026-09-13"
+      }
+    },
+    {
+      "osv_id": "GHSA-x33g-cr3x-6449",
+      "cve_id": "CVE-2026-102275",
+      "ecosystem": "PyPI",
+      "package": "PyJWT",
+      "repo_url": "https://github.com/jpadilla/pyjwt",
+      "pre_patch_commit": "30b7ca1afc9013ab9396c890ea98726a7a8311c7",
+      "fixed_commit": "3cd9ceec33ced359decbad75b413ad668ae6332c",
+      "summary": "PyJWT accepts inconsistent OKP x/d JWKs, causing public/private key identity confusion",
+      "published": "2026-10-05T23:44:03Z",
+      "aliases": [
+        "CVE-2026-102275"
+      ],
+      "cwe_ids": [
+        "CWE-345",
+        "CWE-348"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/jpadilla/pyjwt/commit/3cd9ceec33ced359decbad75b413ad668ae6332c",
+      "source_refs": [
+        "https://github.com/jpadilla/pyjwt/commit/3cd9ceec33ced359decbad75b413ad668ae6332c"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Summary\n\nPyJWT accepts internally inconsistent OKP private JWKs where the declared public key `x` does not correspond to the supplied private key `d`.\n\nWhen `d` is present, `OKPAlgorithm.from_jwk()` constructs the Ed25519/Ed448 private key from `d` without verifying that the public key derived from `d` matches `x`. As a result, the original JWK can contain one public key identity while PyJWT performs cryptographic operations using a different key.\n\nIn affected DPoP integrations, this can allow a stolen sender-constrained access token to be used without possession of the legitimate holder's private key.\n\n### Details\n\nThe vulnerable logic is in `jwt/algorithms.py`:\n\n```python\nif \"x\" not in obj:\n    raise InvalidKeyError('OKP should have \"x\" parameter')\n\nx = base64url_decode(obj.get(\"x\"))\n\nif \"d\" not in obj:\n    if curve == \"Ed25519\":\n        return Ed25519PublicKey.from_public_bytes(x)\n    return Ed448PublicKey.from_public_bytes(x)\n\nd = base64url_decode(obj.get(\"d\"))\n\nif curve == \"Ed25519\":\n    return Ed25519PrivateKey.from_private_bytes(d)\n\nreturn Ed448PrivateKey.from_private_bytes(d)\n```\n\nWhen `d` is present, `x` is parsed but never compared with the public key derived from `d`.\n\nFor example, PyJWT accepts:\n\n```json\n{\n  \"kty\": \"OKP\",\n  \"crv\": \"Ed25519\",\n  \"x\": \"<legitimate-user-public-key>\",\n  \"d\": \"<attacker-private-key>\"\n}\n```\n\neven though `x` and `d` belong to different key pairs.\n\nThe behavior has existed since OKP private-JWK import was introduced:\n\n* Ed25519: PyJWT 2.1.0+\n* Ed448: PyJWT 2.2.0+\n* Confirmed through PyJWT 2.14.0 and current master\n\nA correct import should derive the public key from `d` and reject the JWK when it does not equal the supplied `x`.\n\n### PoC\n\nThe reproducer creates two Ed25519 keypairs:\n\n* a legitimate holder keypair\n* an attacker keypair\n\nIt then:\n\n1. Creates an access token whose `cnf.jkt` is bound to the legitimate public key.\n2. Creates a DPoP proof JWK containing the legitimate user's `x` together with the attacker's `d`.\n3. ",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 1,
+            "test": 1
+          },
+          "source_files": [
+            "jwt/algorithms.py"
+          ],
+          "test_files": [
+            "tests/test_algorithms.py"
+          ],
+          "source_lines": 14,
+          "source_dirs": [
+            "jwt"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "pyproject.toml"
+          ],
+          "test_files_in_repo": 10,
+          "has_dockerfile": false
+        },
+        "score": 18,
+        "fix_commit_date": "2026-09-12"
+      }
+    },
+    {
+      "osv_id": "GHSA-w23x-9jrw-r45c",
+      "cve_id": "CVE-2026-103000",
+      "ecosystem": "PyPI",
+      "package": "pypdf",
+      "repo_url": "https://github.com/py-pdf/pypdf",
+      "pre_patch_commit": "959467a9b95be83e2dc5ae873ece5f371263ede7",
+      "fixed_commit": "0d8b5a8832cde1ba308b5c27567b879b7b7eed4a",
+      "summary": "pypdf: Possible large memory usage when retrieving alphabetical page labels",
+      "published": "2026-10-01T15:07:08Z",
+      "aliases": [
+        "CVE-2026-103000"
+      ],
+      "cwe_ids": [
+        "CWE-400"
+      ],
+      "severity": "HIGH",
+      "fix_commit_url": "https://github.com/py-pdf/pypdf/commit/0d8b5a8832cde1ba308b5c27567b879b7b7eed4a",
+      "source_refs": [
+        "https://github.com/py-pdf/pypdf/commit/0d8b5a8832cde1ba308b5c27567b879b7b7eed4a"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Impact\n\nAn attacker who uses this vulnerability can craft a PDF which leads to large memory consumption. This requires accessing the page labels of a document with large alphabetical labels.\n\n### Patches\n\nThis has been fixed in [pypdf==6.19.0](https://github.com/py-pdf/pypdf/releases/tag/6.19.0).\n\n### Workarounds\n\nIf you cannot upgrade yet, consider applying the changes from PR [#4096](https://github.com/py-pdf/pypdf/pull/4096).",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 1,
+            "test": 1
+          },
+          "source_files": [
+            "pypdf/_page_labels.py"
+          ],
+          "test_files": [
+            "tests/test_page_labels.py"
+          ],
+          "source_lines": 11,
+          "source_dirs": [
+            "pypdf"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "pyproject.toml"
+          ],
+          "test_files_in_repo": 39,
+          "has_dockerfile": false
+        },
+        "score": 18,
+        "fix_commit_date": "2026-09-16"
+      }
+    },
+    {
+      "osv_id": "GHSA-jw7q-gvrg-4vj3",
+      "cve_id": "CVE-2026-102997",
+      "ecosystem": "PyPI",
+      "package": "pypdf",
+      "repo_url": "https://github.com/py-pdf/pypdf",
+      "pre_patch_commit": "0fb26eb8cdd01c44b3b2c9fe8329751be2f7cfd5",
+      "fixed_commit": "d9d38cf99b115deb562d3b68f36c33027bc04f79",
+      "summary": "pypdf: Possible long runtimes for partially malformed FlateDecode streams (Follow-up)",
+      "published": "2026-10-01T15:06:33Z",
+      "aliases": [
+        "CVE-2026-102997"
+      ],
+      "cwe_ids": [
+        "CWE-400",
+        "CWE-407"
+      ],
+      "severity": "HIGH",
+      "fix_commit_url": "https://github.com/py-pdf/pypdf/commit/d9d38cf99b115deb562d3b68f36c33027bc04f79",
+      "source_refs": [
+        "https://github.com/py-pdf/pypdf/commit/d9d38cf99b115deb562d3b68f36c33027bc04f79"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Impact\n\nAn attacker who uses this vulnerability can craft a PDF which leads to long runtimes. This requires a partially malformed `/FlateDecode` stream, where the byte-by-byte decompression is used.\n\n### Patches\n\nThis has been fixed in [pypdf==6.18.1](https://github.com/py-pdf/pypdf/releases/tag/6.18.1).\n\n### Workarounds\n\nIf you cannot upgrade yet, consider applying the changes from PR [#4073](https://github.com/py-pdf/pypdf/pull/4073).",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 1,
+            "test": 1
+          },
+          "source_files": [
+            "pypdf/filters.py"
+          ],
+          "test_files": [
+            "tests/test_filters.py"
+          ],
+          "source_lines": 15,
+          "source_dirs": [
+            "pypdf"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "pyproject.toml"
+          ],
+          "test_files_in_repo": 40,
+          "has_dockerfile": false
+        },
+        "score": 18,
+        "fix_commit_date": "2026-09-11"
+      }
+    },
+    {
+      "osv_id": "GHSA-vxq7-64xx-v4gw",
+      "cve_id": "CVE-2026-97689",
+      "ecosystem": "PyPI",
+      "package": "urllib3",
+      "repo_url": "https://github.com/urllib3/urllib3",
+      "pre_patch_commit": "ea2ad7b21a80da3632f80016526a18864586077f",
+      "fixed_commit": "cd770b059b543be29298ea5c52afb0b1b090f5ed",
+      "summary": "urllib3: HTTPResponse.stream()/read_chunked() buffers an unbounded chunk-size line into memory",
+      "published": "2026-09-30T14:46:18Z",
+      "aliases": [
+        "CVE-2026-97689"
+      ],
+      "cwe_ids": [
+        "CWE-770"
+      ],
+      "severity": "HIGH",
+      "fix_commit_url": "https://github.com/urllib3/urllib3/commit/cd770b059b543be29298ea5c52afb0b1b090f5ed",
+      "source_refs": [
+        "https://github.com/urllib3/urllib3/commit/cd770b059b543be29298ea5c52afb0b1b090f5ed"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "## Impact\n\nurllib3's [streaming API](https://urllib3.readthedocs.io/en/2.7.0/advanced-usage.html#streaming-and-i-o) is designed for efficiently handling large HTTP responses by reading the content in chunks, rather than loading the entire response body into memory at once. When decoding a [chunked-transfer-encoded response](https://httpwg.org/specs/rfc9112.html#chunked.encoding), this API reads each chunk's size field by buffering until it sees `\\n` or EOF.\n\nA malicious HTTP server can return `Transfer-Encoding: chunked` and then send a very long run of bytes without any newline, causing the streaming client to buffer that entire run before urllib3 can reject the chunk size as invalid and allocate more memory than intended.\n\nTo fix the issue, we'll reject chunk-size fields larger than 65536 bytes, as already done in the non-streaming case, which is currently handled by the Python standard library. Note that this only applies to reading the chunk-size field, not the chunk data, which is already handled correctly. Thus, there shouldn't be any impact for non-malicious servers.\n\n## Affected usages\n\nApplications and libraries using urllib3 versions earlier than 2.8.0 may be affected when streaming a chunked response from untrusted sources. Specifically, this affects the [read_chunked()](https://urllib3.readthedocs.io/en/stable/reference/urllib3.response.html#urllib3.response.BaseHTTPResponse.read_chunked) and [stream()](https://urllib3.readthedocs.io/en/stable/reference/urllib3.response.html#urllib3.response.BaseHTTPResponse.stream) methods of the HTTPResponse object.\n\nThis also affects requests streaming API, which uses urllib3 under the hood.\n\n## Remediation\n\nUpgrade to urllib3 version 2.8.0 or later, where chunk-size fields larger than 65536 will be rejected. If upgrading is not immediately possible, consider reading the response at once using the [read()](https://urllib3.readthedocs.io/en/stable/reference/urllib3.response.html#urllib3.response.BaseHTTPResponse.read) ",
+      "screening": {
+        "diff": {
+          "counts": {
+            "docs": 1,
+            "source": 1,
+            "test": 2
+          },
+          "source_files": [
+            "src/urllib3/response.py"
+          ],
+          "test_files": [
+            "test/test_response.py",
+            "test/with_dummyserver/test_socketlevel.py"
+          ],
+          "source_lines": 20,
+          "source_dirs": [
+            "src/urllib3"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "pyproject.toml",
+            "setup.cfg"
+          ],
+          "test_files_in_repo": 32,
+          "has_dockerfile": false
+        },
+        "score": 18,
+        "fix_commit_date": "2026-09-15"
+      }
+    },
+    {
+      "osv_id": "GHSA-w2cx-738m-mc7w",
+      "cve_id": "CVE-2026-102273",
+      "ecosystem": "PyPI",
+      "package": "PyJWT",
+      "repo_url": "https://github.com/jpadilla/pyjwt",
+      "pre_patch_commit": "af8181ca0bec5e6b372fbba9afbe23702b787ceb",
+      "fixed_commit": "801cd128528c62d9b23fcd161d1a2e1c17982f95",
+      "summary": "PyJWT accepts public JWK containers as HMAC secrets",
+      "published": "2026-09-29T23:16:55Z",
+      "aliases": [
+        "CVE-2026-102273"
+      ],
+      "cwe_ids": [
+        "CWE-347"
+      ],
+      "severity": "HIGH",
+      "fix_commit_url": "https://github.com/jpadilla/pyjwt/commit/801cd128528c62d9b23fcd161d1a2e1c17982f95",
+      "source_refs": [
+        "https://github.com/jpadilla/pyjwt/commit/801cd128528c62d9b23fcd161d1a2e1c17982f95"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Summary\n\nPyJWT 2.13.0 contains an incomplete defense against algorithm confusion when\nan application mixes symmetric and asymmetric algorithms in one verification\npath. A public RSA, EC, or OKP JWK can be accepted as an HMAC secret when it\nis wrapped in a JWKS object, nested in an array, or represented in another\ncontainer form that does not expose a top-level `kty` member.\n\n### Impact\n\nAn attacker who knows the public key material can forge HS256/HS384/HS512\ntokens if the application simultaneously:\n\n* allows both HS* and asymmetric algorithms;\n* passes raw public JWK/JWKS JSON as `key=`; and\n* uses that same value as the HMAC secret.\n\nThis can allow forged JWT claims in affected application configurations. The\nissue does not affect applications that keep symmetric and asymmetric\nverification paths separate and follow PyJWT's algorithm-selection guidance.\n\n### Fix status\n\nThe fix is on `master` in commit `801cd12` (`fix: reject public JWK container\nHMAC keys`). `HMACAlgorithm.prepare_key` now rejects public JWK members found in\nobjects, arrays, nested containers, BOM/UTF variants, and recursion-limit\ninputs. It also recognizes escaped JSON member names without treating ordinary\nstring values as JWKs. Ordinary JSON secrets remain accepted byte-for-byte.\n\nThe change was tested with focused regression tests and the full local tox\nmatrix. Available Python 3.9, 3.12, and 3.13 crypto/no-crypto suites, mypy,\npackage metadata, and coverage passed; unavailable interpreters were skipped\nby the project configuration. A fresh independent Astra/max security review\naccepted the final diff with no blocking findings.\n\nThe affected range is `= 2.13.0`. The fix is on the unreleased development\nbranch; the patched version will be recorded when a released 2.x version\ncontaining the fix is available. This advisory is being moved to draft pending\nthat release.\n\n### Reporter credit\n\nCredit: Charles Vosburgh / Trilobyte.\n\n### Original report\n\nThe original report and reproduction packa",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 1,
+            "test": 1
+          },
+          "source_files": [
+            "jwt/algorithms.py"
+          ],
+          "test_files": [
+            "tests/test_algorithms.py"
+          ],
+          "source_lines": 51,
+          "source_dirs": [
+            "jwt"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "pyproject.toml"
+          ],
+          "test_files_in_repo": 10,
+          "has_dockerfile": false
+        },
+        "score": 18,
+        "fix_commit_date": "2026-09-11"
+      }
+    },
+    {
+      "osv_id": "GHSA-vf2x-4v53-pm7v",
+      "cve_id": "CVE-2026-92164",
+      "ecosystem": "PyPI",
+      "package": "streamlink",
+      "repo_url": "https://github.com/streamlink/streamlink",
+      "pre_patch_commit": "46c9b288b5f95176b15cc05daf55285b5c3f0e10",
+      "fixed_commit": "4b99c64dde21ea70c24d9ffdbd15849b05f465c6",
+      "summary": "Streamlink: HTTPSession follows HTTP redirects into file:// URLs, reading local files",
+      "published": "2026-09-24T14:58:04Z",
+      "aliases": [
+        "CVE-2026-92164"
+      ],
+      "cwe_ids": [
+        "CWE-73"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/streamlink/streamlink/commit/4b99c64dde21ea70c24d9ffdbd15849b05f465c6",
+      "source_refs": [
+        "https://github.com/streamlink/streamlink/commit/4b99c64dde21ea70c24d9ffdbd15849b05f465c6"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "## Summary\n\n`HTTPSession` mounts a `FileAdapter` for the `file://` scheme and inherits redirect handling\nunchanged from `requests.Session`. `requests` does not check for scheme downgrades or\ncross-protocol transitions when it follows a redirect, so any http(s) request Streamlink makes can\nbe redirected by the remote server into `file:///...` and the local file is returned as the\nresponse body.\n\n`GHSA-hgqw-6m45-hw5f` / `CVE-2026-44353` fixed direct `file://` segment and playlist URIs in HLS\nplaylists and DASH manifests. Those checks look at the URL as it appears in the manifest, so a\nmanifest that lists an ordinary `https://` URL passes them, and the redirect happens later at fetch\ntime. The attack surface is the same one that advisory describes, but the flaw is one level down in\n`HTTPSession` rather than in the streaming implementations, so it applies to every request the\nsession makes and not only to segment and manifest fetches.\n\n## Affected version\n\nExecuted against released `streamlink 8.5.0` (PyPI, installed into a clean venv on\nPython 3.12).\n\n## Attacker model\n\nThe attacker controls a URL the victim's Streamlink run reaches: a playlist or manifest URL passed\non the command line, or any http(s) URL referenced from attacker-controlled manifest content. No\nprivileges on the victim host and no `file://` input are required, and the `file://` scheme never\nappears in anything the victim or the manifest parser sees.\n\n## Proof of concept, executed\n\n```python\nimport threading\nfrom http.server import BaseHTTPRequestHandler, HTTPServer\n\nfrom streamlink.exceptions import StreamError\nfrom streamlink.session.http import HTTPSession\n\nclass H(BaseHTTPRequestHandler):\n    def do_GET(self):\n        if self.path == \"/segment\":\n            self.send_response(302)\n            self.send_header(\"Location\", \"file:///etc/hosts\")\n            self.end_headers()\n        else:\n            self.send_response(404)\n            self.end_headers()\n\n    def log_message(self, *a):\n        pass\n\ns",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 1,
+            "test": 1
+          },
+          "source_files": [
+            "src/streamlink/session/http.py"
+          ],
+          "test_files": [
+            "tests/session/test_http.py"
+          ],
+          "source_lines": 43,
+          "source_dirs": [
+            "src/streamlink/session"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "pyproject.toml",
+            "setup.py"
+          ],
+          "test_files_in_repo": 223,
+          "has_dockerfile": false
+        },
+        "score": 18,
+        "fix_commit_date": "2026-09-13"
+      }
+    },
+    {
+      "osv_id": "GHSA-hrr3-gc8f-f4qj",
+      "cve_id": "CVE-2026-86472",
+      "ecosystem": "npm",
+      "package": "fast-uri",
+      "repo_url": "https://github.com/fastify/fast-uri",
+      "pre_patch_commit": "f40a88f33e684a46faec3f5b820bcbb1e85add64",
+      "fixed_commit": "5dabb86732aa2a7655e258719970e61e12b6b4d1",
+      "summary": "fast-uri vulnerable to inconsistent host case normalization via percent-encoded octets",
+      "published": "2026-09-29T23:54:25Z",
+      "aliases": [
+        "CVE-2026-86472"
+      ],
+      "cwe_ids": [
+        "CWE-178"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/fastify/fast-uri/commit/5dabb86732aa2a7655e258719970e61e12b6b4d1",
+      "source_refs": [
+        "https://github.com/fastify/fast-uri/commit/5dabb86732aa2a7655e258719970e61e12b6b4d1"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Impact\n\n`fast-uri` folds the host to lowercase before it percent-decodes the host, so a percent-encoded uppercase unreserved octet such as `%41` decodes to a literal `A` that is never folded. For a scheme-relative reference (`//host`) there is no scheme, so the host canonicalization that repairs this on a scheme-bearing URL does not run. As a result `parse`, `normalize`, and `equal` disagree on the same host: `parse(\"//%41.com\").host` returns `\"A.com\"` while `parse(\"//a.com\").host` and `parse(\"//A.com\").host` return `\"a.com\"`, and `equal(\"//%41.com\", \"//a.com\")` is `false` even though `equal(\"//A.com\", \"//a.com\")` is `true`. An application that makes a case-sensitive host decision on `fast-uri` output for a scheme-relative reference, for example a host allowlist or denylist that compares `parse(url).host` or uses `fast-uri.equal`, can be steered past the check with a percent-encoded uppercase octet. Because a hostname is case-insensitive in DNS and HTTP routing, the evading spelling reaches the same host the check meant to gate, so the effect is check evasion rather than reaching a different registrable host.\n\n### Patches\n\nUpgrade to `fast-uri` 4.1.5, 3.1.8, or 2.4.7.\n\n### Workarounds\n\nCompare hosts case-insensitively (lowercase the parsed host before any allowlist or denylist decision), or avoid making case-sensitive host decisions on scheme-relative input until upgrading.",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 1,
+            "test": 1
+          },
+          "source_files": [
+            "index.js"
+          ],
+          "test_files": [
+            "test/security-normalization.test.js"
+          ],
+          "source_lines": 16,
+          "source_dirs": [
+            "."
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 24,
+          "has_dockerfile": false
+        },
+        "score": 18,
+        "fix_commit_date": "2026-09-14"
+      }
+    },
+    {
+      "osv_id": "GHSA-jvvf-x445-j334",
+      "cve_id": "CVE-2026-86818",
+      "ecosystem": "npm",
+      "package": "fast-uri",
+      "repo_url": "https://github.com/fastify/fast-uri",
+      "pre_patch_commit": "a34ced25d015d12dfc2b0cf85ce01a4a0d12ecf6",
+      "fixed_commit": "f40a88f33e684a46faec3f5b820bcbb1e85add64",
+      "summary": "fast-uri vulnerable to mailto header injection via percent-encoded field-name desynchronization",
+      "published": "2026-09-29T23:51:16Z",
+      "aliases": [
+        "CVE-2026-86818"
+      ],
+      "cwe_ids": [
+        "CWE-172",
+        "CWE-436"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/fastify/fast-uri/commit/f40a88f33e684a46faec3f5b820bcbb1e85add64",
+      "source_refs": [
+        "https://github.com/fastify/fast-uri/commit/f40a88f33e684a46faec3f5b820bcbb1e85add64"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Impact\n\n`fast-uri`'s `mailto` scheme parser compares each query field name to the reserved names (`to`, `subject`, `body`) while the name is still percent-encoded, and only percent-decodes it when storing it as a generic header. On serialize, the decoded name is re-emitted, so a field name such as `%74o` (percent-encoded `to`) is not recognized as a recipient at parse time (`parse().to` shows only the legitimate recipient) but materializes as a literal `to=` field after `serialize()`, and reparsing then treats it as a recipient. The same technique smuggles `subject` and `body` through `%73ubject` and `%62ody`.\n\nAn application that parses an untrusted mailto URI, makes a display, allowlist, or logging decision on `parse().to`, then re-serializes the result and passes the serialized string to a mail client or an outbound send path can gain an attacker-chosen recipient, subject, or body that was not visible when the recipient list was checked. A scanner inspecting the raw input for an extra `to=` sees nothing, because the injected field appears only after `fast-uri` serializes.\n\n### Patches\n\nUpgrade to `fast-uri` 4.1.5.\n\n### Workarounds\n\nPercent-decode and compare mailto field names case-insensitively before trusting `parse().to`, or re-check the recipient list on the serialized output rather than only on the initial parse, until upgrading.",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 1,
+            "test": 1
+          },
+          "source_files": [
+            "lib/schemes.js"
+          ],
+          "test_files": [
+            "test/mailto-field-name-security.test.js"
+          ],
+          "source_lines": 62,
+          "source_dirs": [
+            "lib"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 23,
+          "has_dockerfile": false
+        },
+        "score": 18,
+        "fix_commit_date": "2026-09-14"
+      }
+    },
+    {
+      "osv_id": "GHSA-3pph-fpjx-jg34",
+      "cve_id": "CVE-2026-88932",
+      "ecosystem": "npm",
+      "package": "multer",
+      "repo_url": "https://github.com/expressjs/multer",
+      "pre_patch_commit": "7f2c9ab5f35c0478a7b3bb0f5e1af9b536780132",
+      "fixed_commit": "53337f9713619ef3381ee6b4e541f926dbaac305",
+      "summary": "multer vulnerable to Denial of Service via orphaned disk writes on aborted uploads",
+      "published": "2026-09-28T21:34:58Z",
+      "aliases": [
+        "CVE-2026-88932"
+      ],
+      "cwe_ids": [
+        "CWE-400",
+        "CWE-459"
+      ],
+      "severity": "MODERATE",
+      "fix_commit_url": "https://github.com/expressjs/multer/commit/53337f9713619ef3381ee6b4e541f926dbaac305",
+      "source_refs": [
+        "https://github.com/expressjs/multer/commit/53337f9713619ef3381ee6b4e541f926dbaac305"
+      ],
+      "sources": [
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Impact\n\nMulter's `diskStorage` can leave complete, orphaned files on disk when a multipart upload is aborted in the brief window before the storage engine assigns the file path. This is an incomplete fix of CVE-2026-5038: the earlier cleanup removes only in-flight uploads that already have a path, so an upload aborted inside that window is written to disk with nothing left to remove it, and the application is not given a handle to clean it up. An unauthenticated attacker sending aborted requests to any route backed by disk storage can accumulate orphaned files until the upload directory or the shared system temporary directory is exhausted. An asynchronous `destination` or `filename` widens the window.\n\n### Patches\n\nUsers should upgrade to `2.4.0` or higher.\n\n### Workarounds\n\nNone.",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 1,
+            "test": 1
+          },
+          "source_files": [
+            "lib/make-middleware.js"
+          ],
+          "test_files": [
+            "test/orphan-before-path-assignment.js"
+          ],
+          "source_lines": 36,
+          "source_dirs": [
+            "lib"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 34,
+          "has_dockerfile": false
+        },
+        "score": 18,
+        "fix_commit_date": "2026-09-14"
+      }
+    },
+    {
+      "osv_id": "GHSA-jqcg-44mw-7w3h",
+      "cve_id": "CVE-2026-90711",
+      "ecosystem": "npm",
+      "package": "proxy-addr",
+      "repo_url": "https://github.com/jshttp/proxy-addr",
+      "pre_patch_commit": "92e103e3f3ab0467c8846cacea71f27dfc81091d",
+      "fixed_commit": "780911d84d18e2c5fa008ed0c0d387631ec11965",
+      "summary": "proxy-addr vulnerable to IP spoofing via IPv4-mapped IPv6 trust subnet",
+      "published": "2026-10-05T23:30:26Z",
+      "aliases": [
+        "CVE-2026-90711"
+      ],
+      "cwe_ids": [
+        "CWE-290",
+        "CWE-348",
+        "CWE-697"
+      ],
+      "severity": "CRITICAL",
+      "fix_commit_url": "https://github.com/jshttp/proxy-addr/commit/780911d84d18e2c5fa008ed0c0d387631ec11965",
+      "source_refs": [
+        "https://github.com/jshttp/proxy-addr/commit/780911d84d18e2c5fa008ed0c0d387631ec11965"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Impact\n\n`proxy-addr` determines which network hops are trusted proxies so that `X-Forwarded-For` can be believed. When an application configures a trust subnet as an IPv4-mapped IPv6 address with a short prefix, such as `::ffff:10.0.0.0/8` (the correct spelling is `::ffff:10.0.0.0/104`), the subnet compiles with all-zero leading bits and matches every IPv4 address instead of the block it names. The same happens for any IPv6 trust subnet with zero leading bits, such as `::/1`.\n\nEvery unauthenticated client is then trusted as a proxy at hop 0, so `proxyaddr(req, trust)`, and therefore `req.ip` and `req.ips` in Express, returns whatever the client sends in `X-Forwarded-For`. This defeats IP-based access control, rate limiting, geolocation, and audit logging. The misconfiguration compiles without any error, and the same block written correctly behaves correctly, so the difference is not visible from the configuration.\n\n### Patches\n\nUpgrade to `proxy-addr` 2.0.8. An IPv4 address now matches an IPv6 trust subnet only when that subnet is a genuine IPv4-mapped subnet whose prefix covers the mapped marker.\n\n### Workarounds\n\nWrite IPv4 trust subnets in plain IPv4 notation (for example `10.0.0.0/8`). If IPv4-mapped IPv6 notation is required, use the full form so the prefix covers the mapped marker (for example `::ffff:10.0.0.0/104` for the `10.0.0.0/8` block).",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 1,
+            "test": 1
+          },
+          "source_files": [
+            "index.js"
+          ],
+          "test_files": [
+            "test/test.js"
+          ],
+          "source_lines": 32,
+          "source_dirs": [
+            "."
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 1,
+          "has_dockerfile": false
+        },
+        "score": 15,
+        "fix_commit_date": "2026-09-15"
+      }
+    },
+    {
+      "osv_id": "GHSA-vc2v-76pw-4v95",
+      "cve_id": "CVE-2026-87776",
+      "ecosystem": "npm",
+      "package": "compression",
+      "repo_url": "https://github.com/expressjs/compression",
+      "pre_patch_commit": "0a764956691bede2b62c711598ee65ea643d3b1e",
+      "fixed_commit": "151f63e91e1b64f8fb0b064e19321a4f28db6bff",
+      "summary": "compression vulnerable to Denial of Service via memory leak on premature response close",
+      "published": "2026-10-05T23:28:01Z",
+      "aliases": [
+        "CVE-2026-87776"
+      ],
+      "cwe_ids": [
+        "CWE-401",
+        "CWE-459"
+      ],
+      "severity": "HIGH",
+      "fix_commit_url": "https://github.com/expressjs/compression/commit/151f63e91e1b64f8fb0b064e19321a4f28db6bff",
+      "source_refs": [
+        "https://github.com/expressjs/compression/commit/151f63e91e1b64f8fb0b064e19321a4f28db6bff"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Impact\n\nA vulnerability in compression `< 1.8.2` allows an attacker to trigger a Denial of Service (DoS) by disconnecting while a compressed response is being sent. When the client aborts the connection before the response finishes, the zlib stream created to compress that response is never destroyed, so each aborted compressed response leaks its native zlib memory. Repeated aborted requests can exhaust available memory. All applications using compression are affected.\n\n### Patches\n\nUsers should upgrade to `1.8.2`.\n\n### Workarounds\n\nNone.",
+      "screening": {
+        "diff": {
+          "counts": {
+            "docs": 1,
+            "source": 1,
+            "manifest": 1,
+            "test": 1
+          },
+          "source_files": [
+            "index.js"
+          ],
+          "test_files": [
+            "test/compression.js"
+          ],
+          "source_lines": 22,
+          "source_dirs": [
+            "."
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 1,
+          "has_dockerfile": false
+        },
+        "score": 15,
+        "fix_commit_date": "2026-09-11"
+      }
+    },
+    {
+      "osv_id": "GHSA-prgh-xp8r-p3m5",
+      "cve_id": "CVE-2026-90776",
+      "ecosystem": "npm",
+      "package": "nodemailer",
+      "repo_url": "https://github.com/nodemailer/nodemailer",
+      "pre_patch_commit": "ad54add4c71c3e1745189764bdab2218b9f1b91b",
+      "fixed_commit": "c07f17518d25aca8ab2ad66968dcbca538c24b89",
+      "summary": "Nodemailer addressparser: O(n^2) on comment-joined addresses enables a remote DoS (reachable via mailparser)",
+      "published": "2026-09-30T14:41:01Z",
+      "aliases": [
+        "CVE-2026-90776"
+      ],
+      "cwe_ids": [
+        "CWE-400",
+        "CWE-407"
+      ],
+      "severity": "HIGH",
+      "fix_commit_url": "https://github.com/nodemailer/nodemailer/commit/c07f17518d25aca8ab2ad66968dcbca538c24b89",
+      "source_refs": [
+        "https://github.com/nodemailer/nodemailer/commit/c07f17518d25aca8ab2ad66968dcbca538c24b89"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Summary\n\n`nodemailer/lib/addressparser` parses one shape of address in O(n^2) time. A single ~640 KB address value blocks the Node.js event loop for roughly 7 seconds. And it is reachable without auth: mailparser feeds inbound email headers straight into this parser, so one crafted email is enough to stall a service that parses mail.\n\n### Details\n\nThe parser builds a single address by accumulating its atoms into one string. When the atoms are separated by RFC 5322 comments, like `a@b(c)@b(c)@b(c)...`, every atom re-joins that same growing string.\n\nThe join check in `src/addressparser/index.ts`:\n\n```js\nconst joins =\n    prevToken &&\n    prevToken.noBreak &&\n    parts.length &&\n    (prevToken.value !== ')' || parts[parts.length - 1].slice(-1) === '@' || token.value.charAt(0) === '@');\n```\n\nThe issue is the order of the last two operands. `parts[parts.length - 1].slice(-1)` runs before the cheap `token.value.charAt(0)`. `slice(-1)` has to flatten the accumulator to read its last character → O(current length) → and that runs on every token → O(n^2) over the whole value. Since `||` is left to right, the cheap `charAt(0)` that would short-circuit never gets the chance.\n\nThe chain: long comment-joined address → one growing accumulator → `slice(-1)` re-flattens it on every token → quadratic parse time.\n\n### PoC\n\nIsolated, just the parser (`npm i nodemailer@10.0.3`):\n\n```js\nconst addressparser = require('nodemailer/lib/addressparser');\nconst s = Date.now();\naddressparser('a' + '@b(c)'.repeat(130000));\nconsole.log(Date.now() - s, 'ms'); // ~7000 ms, blocking\n```\n\nEnd to end through mailparser, the remote path (`npm i mailparser@3.9.24`):\n\n```js\nconst { simpleParser } = require('mailparser');\n(async () => {\n  const to = 'a' + '@b(c)'.repeat(130000);\n  const eml = `From: a@b.com\\r\\nTo: ${to}\\r\\nSubject: x\\r\\n\\r\\nhi\\r\\n`;\n  const s = Date.now();\n  await simpleParser(eml);\n  console.log(Date.now() - s, 'ms'); // ~7000 ms, blocking\n})();\n```\n\nTimings measured on 10.0.3:\n\n| Add",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 1,
+            "test": 1
+          },
+          "source_files": [
+            "src/addressparser/index.ts"
+          ],
+          "test_files": [
+            "test/addressparser/addressparser-test.ts"
+          ],
+          "source_lines": 19,
+          "source_dirs": [
+            "src/addressparser"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 2,
+          "has_dockerfile": false
+        },
+        "score": 15,
+        "fix_commit_date": "2026-09-11"
+      }
+    },
+    {
+      "osv_id": "GHSA-g57g-f23g-4646",
+      "cve_id": null,
+      "ecosystem": "npm",
+      "package": "nodemailer",
+      "repo_url": "https://github.com/nodemailer/nodemailer",
+      "pre_patch_commit": "1465c3f5ff74a7c4fbbe9853bd01448bb92bf5b7",
+      "fixed_commit": "2f36eb1aa1dd33e312411dc9b888548e14db54ee",
+      "summary": "Nodemailer: Quoted local-part can produce malformed envelope recipient through RFC 5322 comment parsing",
+      "published": "2026-09-29T23:44:04Z",
+      "aliases": [],
+      "cwe_ids": [
+        "CWE-20",
+        "CWE-436"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/nodemailer/nodemailer/commit/2f36eb1aa1dd33e312411dc9b888548e14db54ee",
+      "source_refs": [
+        "https://github.com/nodemailer/nodemailer/commit/2f36eb1aa1dd33e312411dc9b888548e14db54ee"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "## Summary\n\nNodemailer's address parser can produce an unexpected recipient address when an RFC 5322 comment follows the domain of an address whose local-part is a quoted string.\n\nFor example:\n\n```text\n\"user\"@example.com(x)evil.com\n```\n\nis parsed as:\n\n```text\n{\n  address: \"user@example.com evil.com\",\n  name: \"\"\n}\n```\n\nThe resulting address therefore contains additional attacker-controlled domain text separated by a literal space.\n\nThe parsed `.address` value is subsequently propagated into the SMTP envelope:\n\n```text\nsrc/addressparser/index.ts\n        ↓\nrecipient.address\n        ↓\nsrc/mime-node/index.ts\n        ↓\nenvelope.to\n```\n\nThe envelope construction uses the parsed address without another strict address validation step.\n\nThis appears to be a variant of the RFC 5322 comment parsing issue addressed by GHSA-cc9r-2j5m-2m83, but it follows a different parser path when the local-part is quoted.\n\n## Reproduction\n\nInput:\n\n```text\n\"user\"@example.com(x)evil.com\n```\n\nObserved parser output:\n\n```text\naddress: \"user@example.com evil.com\"\nname: \"\"\n```\n\nA second example:\n\n```text\n\"a\"@b.com(c)d.com(e)f.com\n```\n\nproduces:\n\n```text\naddress: \"a@b.com d.com f.com\"\nname: \"\"\n```\n\nFor comparison, the corresponding unquoted form:\n\n```text\nuser@example.com(x)evil.com\n```\n\ntakes a different code path and is handled by the existing protection differently.\n\n## Technical Details\n\nThe issue is caused by different parsing behavior for quoted and unquoted local-parts.\n\nThe quoted-local-part variant allows the comment-separated trailing domain atoms to remain in the resulting `.address` value.\n\nThat value is then used when constructing the message envelope:\n\n```text\nenvelope.to = recipients.map(to => to.address as string)\n```\n\nNo additional strict recipient validation is performed at this boundary.\n\n## Security Impact\n\nThe confirmed impact is that attacker-controlled comment content can result in a malformed/ambiguous recipient address being accepted by the parser and propagated into `envelop",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 1,
+            "test": 2
+          },
+          "source_files": [
+            "src/addressparser/index.ts"
+          ],
+          "test_files": [
+            "test/addressparser/addressparser-test.ts",
+            "test/mime-node/mime-node-test.ts"
+          ],
+          "source_lines": 34,
+          "source_dirs": [
+            "src/addressparser"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 2,
+          "has_dockerfile": false
+        },
+        "score": 15,
+        "fix_commit_date": "2026-09-12"
+      }
+    },
+    {
+      "osv_id": "GHSA-v53p-9fqp-m79j",
+      "cve_id": null,
+      "ecosystem": "npm",
+      "package": "nodemailer",
+      "repo_url": "https://github.com/nodemailer/nodemailer",
+      "pre_patch_commit": "4dbeb235f78750ade54468f877165172338584d8",
+      "fixed_commit": "437d7fc47403df176bc39271641541b7a9bce102",
+      "summary": "Nodemailer: Quadratic backtracking in the addressparser free-text fallback allows remote denial of service",
+      "published": "2026-09-29T23:43:36Z",
+      "aliases": [],
+      "cwe_ids": [
+        "CWE-407",
+        "CWE-1333"
+      ],
+      "severity": "HIGH",
+      "fix_commit_url": "https://github.com/nodemailer/nodemailer/commit/437d7fc47403df176bc39271641541b7a9bce102",
+      "source_refs": [
+        "https://github.com/nodemailer/nodemailer/commit/437d7fc47403df176bc39271641541b7a9bce102"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Summary\n\nWhen `addressparser` finds no address by its strict reading, it falls back to pulling one out of the free text with `/\\s*\\b[^@\\s]+@[^\\s]+\\b\\s*/`. That pattern backtracks quadratically: `[^@\\s]+` is retried from every offset and rescans the run to the next `@` each time. A single header value holding a long whitespace-free run with no usable `@` blocks the Node.js event loop for tens of seconds.\n\nIt is cheaper to exploit than GHSA-prgh-xp8r-p3m5: 273KB is enough for ~43s, where the comment-joined shape needed ~1.5MB for ~10s.\n\n### Details\n\nThe fallback in `src/addressparser/index.ts` ran the pattern as a search. `[^@\\s]+` crosses neither whitespace nor `@`, so from each start offset it scans forward to the next `@` or to the end of the run and then fails, and the engine simply advances one character and repeats. Three shapes make every offset fail:\n\n- the run holds no `@` at all\n- the only `@` has nothing after it\n- the only `@` has nothing before it\n\nA fourth reaches it with a valid address present but placed past a long run, so the long run is walked before the match is found.\n\n### PoC\n\n```js\nconst addressparser = require('nodemailer/lib/addressparser');\nconst s = Date.now();\naddressparser(' >' + '>[x][x]'.repeat(40000)); // 273KB\nconsole.log(Date.now() - s, 'ms'); // ~43000 ms, blocking\n```\n\nMeasured on 10.0.5:\n\n| Value | Parse time |\n| --- | --- |\n| `'[x]'.repeat(40000)` (117KB) | 9.0 s |\n| `'[x]'.repeat(40000) + '@'` (117KB) | 8.9 s |\n| `'@' + '[x]'.repeat(40000)` (117KB) | 8.8 s |\n| `' >' + '>[x][x]'.repeat(40000)` (273KB) | 42.9 s |\n\n### Impact\n\nAlgorithmic-complexity denial of service. Node is single threaded, so the block stalls the whole process. Reachable without authentication anywhere inbound header values are handed to this parser, mailparser being the notable case, and reachable from application input wherever a user-supplied string is used as a message address, since `mime-node` parses `to`, `from` and `cc` when composing.\n\n### Patch\n\nThe",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 1,
+            "test": 1
+          },
+          "source_files": [
+            "src/addressparser/index.ts"
+          ],
+          "test_files": [
+            "test/addressparser/addressparser-test.ts"
+          ],
+          "source_lines": 143,
+          "source_dirs": [
+            "src/addressparser"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 2,
+          "has_dockerfile": false
+        },
+        "score": 15,
+        "fix_commit_date": "2026-09-11"
+      }
+    },
+    {
+      "osv_id": "GHSA-5639-2j2p-m4mx",
+      "cve_id": "CVE-2026-102991",
+      "ecosystem": "PyPI",
+      "package": "Mako",
+      "repo_url": "https://github.com/sqlalchemy/mako",
+      "pre_patch_commit": "411b4ac6cf054e61a8fb44c236990fda1e41ade4",
+      "fixed_commit": "000ed85e4e48771eff460bf4fc721fb43de80e08",
+      "summary": "Mako: Path traversal via drive-letter URI on Windows in TemplateLookup",
+      "published": "2026-10-05T23:42:02Z",
+      "aliases": [
+        "CVE-2026-102991"
+      ],
+      "cwe_ids": [
+        "CWE-22"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/sqlalchemy/mako/commit/000ed85e4e48771eff460bf4fc721fb43de80e08",
+      "source_refs": [
+        "https://github.com/sqlalchemy/mako/commit/000ed85e4e48771eff460bf4fc721fb43de80e08"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "## Summary\n\nOn Windows, a `TemplateLookup` URI beginning with a drive designator (e.g. `C:/../../secret.txt` or `C:\\..\\..\\secret.txt`) bypasses the directory traversal check in `Template.__init__`, allowing reads of files outside the configured template directory.\n\nThis is a third, independent instance of the root cause behind CVE-2026-41205 (the `//` prefix) and CVE-2026-44307 (the backslash form). Both of those fixes normalized a separator *spelling*. Neither addressed the other way `posixpath` and `ntpath` disagree: the drive designator. Both prior fixes remain effective on their own terms; this variant survives them for an independent reason.\n\n## Details\n\nThe root cause is the same `posixpath` / `os.path` mismatch: resolution is done with `posixpath`, confinement is checked with `os.path`, which is `ntpath` on Windows.\n\n```\n# mako/lookup.py -- resolution\n247:  srcfile = posixpath.normpath(posixpath.join(dir_, u))   # posixpath, always\n248:  if os.path.isfile(srcfile):                             # ntpath on Windows\n\n# mako/template.py -- confinement\n268:  u_norm = os.path.normpath(u_norm)                       # ntpath on Windows\n269:  if u_norm.startswith(\"..\"):                             # never true for a drive URI\n```\n\n`posixpath` has no concept of a drive, so it treats `C:` as an ordinary path component; the `..` segments pop `C:` and then escape the template root. `ntpath`, by contrast, splits the drive off and treats the remainder as rooted, discarding the `..` entirely -- so the guard on line 269 inspects a string from which the evidence has already been removed:\n\n| URI | `ntpath.normpath` (what the guard sees) | guard fires |\n|---|---|---|\n| `//../secret.txt` | `..\\secret.txt` | yes |\n| `\\..\\secret.txt` | `..\\secret.txt` | yes |\n| `C:/../../secret.txt` | `C:\\secret.txt` | **no** |\n\nBecause the guard cannot fire for *any* URI beginning with a single-letter drive designator, the traversal is unconstrained, and its depth does not have to be guessed. `posi",
+      "screening": {
+        "diff": {
+          "counts": {
+            "generated": 1,
+            "source": 1,
+            "test": 2
+          },
+          "source_files": [
+            "mako/template.py"
+          ],
+          "test_files": [
+            "test/test_lookup.py",
+            "test/test_template.py"
+          ],
+          "source_lines": 8,
+          "source_dirs": [
+            "mako"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "pyproject.toml",
+            "setup.cfg",
+            "setup.py"
+          ],
+          "test_files_in_repo": 24,
+          "has_dockerfile": false
+        },
+        "score": 13,
+        "fix_commit_date": "2026-09-22"
+      }
+    },
+    {
+      "osv_id": "GHSA-gh4c-6fx4-qh6g",
+      "cve_id": "CVE-2026-97688",
+      "ecosystem": "PyPI",
+      "package": "urllib3",
+      "repo_url": "https://github.com/urllib3/urllib3",
+      "pre_patch_commit": "0716e31534345dc1599ea95d903c79f276239bd8",
+      "fixed_commit": "ea2ad7b21a80da3632f80016526a18864586077f",
+      "summary": "urllib3: Chunked Deflate streaming can enter an infinite loop",
+      "published": "2026-09-30T15:00:38Z",
+      "aliases": [
+        "CVE-2026-97688"
+      ],
+      "cwe_ids": [
+        "CWE-835"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/urllib3/urllib3/commit/ea2ad7b21a80da3632f80016526a18864586077f",
+      "source_refs": [
+        "https://github.com/urllib3/urllib3/commit/ea2ad7b21a80da3632f80016526a18864586077f"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Impact\n\nurllib3's streaming API is designed for the efficient handling of large HTTP responses by reading content in chunks instead of loading the entire response body into memory at once.\n\nurllib3 can decompress response bodies according to the HTTP `Content-Encoding` header. When streaming a compressed, chunked response, urllib3 first consumes data already buffered by the decoder before reading the next HTTP chunk.\n\nHowever, urllib3 versions from 2.6.2 through 2.7.0 could enter an infinite loop when a chunked response contained bytes after the end of the Deflate stream. If the decompressed body exceeded the requested streaming chunk size, Python's zlib implementation could retain the trailing bytes as unconsumed input after reaching the end of the compressed stream. urllib3 would repeatedly attempt to decode those same bytes without making progress or reading more data from the network.\n\nA malicious server could exploit this behavior to cause excessive CPU usage and prevent the affected request from completing on the client. Network read timeouts would not interrupt the loop because no further socket operation was required.\n\n### Affected usages\n\nApplications and libraries using urllib3 versions 2.6.2 through 2.7.0 may be affected when all of the following conditions are met:\n\n1. Compressed responses from an untrusted source are streamed using `HTTPResponse.stream(amt=N)` or `HTTPResponse.read_chunked(amt=N)` with a positive, finite chunk size.\n2. Content decoding is enabled.\n3. The response uses both `Transfer-Encoding: chunked` and `Content-Encoding: deflate`.\n4. The decoded body exceeds the requested chunk size and the encoded body contains bytes after the end of the Deflate stream.\n\n`HTTPResponse.stream()` uses a finite chunk size by default and is therefore affected when the other conditions are met.\n\n### Remediation\n\nUpgrade to urllib3 2.8.0, in which the Deflate decoder stops accepting input after reaching the end of the compressed stream and no longer r",
+      "screening": {
+        "diff": {
+          "counts": {
+            "docs": 1,
+            "source": 1,
+            "test": 1
+          },
+          "source_files": [
+            "src/urllib3/response.py"
+          ],
+          "test_files": [
+            "test/test_response.py"
+          ],
+          "source_lines": 8,
+          "source_dirs": [
+            "src/urllib3"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "pyproject.toml",
+            "setup.cfg"
+          ],
+          "test_files_in_repo": 32,
+          "has_dockerfile": false
+        },
+        "score": 13,
+        "fix_commit_date": "2026-09-15"
+      }
+    },
+    {
+      "osv_id": "GHSA-4mh8-r7rc-xpvc",
+      "cve_id": "CVE-2026-92081",
+      "ecosystem": "npm",
+      "package": "fastify",
+      "repo_url": "https://github.com/fastify/fastify",
+      "pre_patch_commit": "7af0d7719d928cb7f24a074e831e83a819b4f626",
+      "fixed_commit": "ad06a4c3fe8a944a904f38068249b18b8f552e90",
+      "summary": "fastify vulnerable to Denial of Service via unhandled exception on HTTP/2 trailer responses",
+      "published": "2026-09-30T23:53:44Z",
+      "aliases": [
+        "CVE-2026-92081"
+      ],
+      "cwe_ids": [
+        "CWE-248"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/fastify/fastify/commit/ad06a4c3fe8a944a904f38068249b18b8f552e90",
+      "source_refs": [
+        "https://github.com/fastify/fastify/commit/ad06a4c3fe8a944a904f38068249b18b8f552e90"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Impact\n\n`fastify` crashes with an uncaught `ERR_HTTP2_INVALID_CONNECTION_HEADERS` exception when a route that registers a response trailer via `reply.trailer()` is served over HTTP/2. Fastify unconditionally adds the `Transfer-Encoding: chunked` header when a trailer is set, which is forbidden on HTTP/2, so Node.js throws while serializing the response headers. The exception is not caught and becomes an uncaughtException, terminating the Node.js process.\n\nOne unauthenticated HTTP/2 request to any route that uses trailers is enough to crash the server, dropping all in-flight requests, and the request can be repeated to keep the process down. Applications are affected only when HTTP/2 is enabled (`http2: true`) and at least one route registers a trailer. HTTP/1.x responses are not affected.\n\n### Patches\n\nUpgrade to `fastify` `5.12.5` or later.\n\n### Workarounds\n\nAvoid registering response trailers with `reply.trailer()` on routes served over HTTP/2 until upgrading.",
+      "screening": {
+        "diff": {
+          "counts": {
+            "docs": 1,
+            "source": 1,
+            "test": 1
+          },
+          "source_files": [
+            "lib/reply.js"
+          ],
+          "test_files": [
+            "test/http2/plain.test.js"
+          ],
+          "source_lines": 7,
+          "source_dirs": [
+            "lib"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 202,
+          "has_dockerfile": false
+        },
+        "score": 13,
+        "fix_commit_date": "2026-09-16"
+      }
+    },
+    {
+      "osv_id": "GHSA-477h-4r7f-fvrx",
+      "cve_id": "CVE-2026-102414",
+      "ecosystem": "npm",
+      "package": "pbkdf2",
+      "repo_url": "https://github.com/browserify/pbkdf2",
+      "pre_patch_commit": "ea4768bd09be327904b4ac075d9328c7c7ee2404",
+      "fixed_commit": "493d8d8ff437f680338bf7397398fda884ad462e",
+      "summary": "pbkdf2 rehashes long passwords on every iteration, enabling denial of service",
+      "published": "2026-10-06T13:40:10Z",
+      "aliases": [
+        "CVE-2026-102414"
+      ],
+      "cwe_ids": [
+        "CWE-400"
+      ],
+      "severity": "MEDIUM",
+      "fix_commit_url": "https://github.com/browserify/pbkdf2/commit/493d8d8ff437f680338bf7397398fda884ad462e",
+      "source_refs": [
+        "https://github.com/browserify/pbkdf2/commit/493d8d8ff437f680338bf7397398fda884ad462e"
+      ],
+      "sources": [
+        "ghsa",
+        "osv"
+      ],
+      "report_url": null,
+      "description": "### Summary\nThis is the same bug as Django had (CVE-2013-1443).\n\n### Details\nA long password can cause a DoS because it is not using cached HMAC, length limits, or pre-hashing passwords longer than the block size of the hash function as per HMAC spec. This line of code hashes the full password each iteration: https://github.com/browserify/pbkdf2/blob/1c3b1f526b052a29b3b42120c9821895772df7e8/lib/sync.js#L60\n\nAlso see https://github.com/browserify/pbkdf2/issues/82\n\n### PoC\nThe first key will take a lot longer to generate when not using the native code and uses code from `/lib/sync.js` (ie when this if statement is true):\nhttps://github.com/browserify/pbkdf2/blob/1c3b1f526b052a29b3b42120c9821895772df7e8/index.js#L33-L37\n\n```js\nvar pbkdf2 = require('pbkdf2');\nvar createHash = require('create-hash');\nvar pw = \".\".repeat(1048576); // 1 MiB\n\nvar t0 = performance.now();\nvar key1 = pbkdf2.pbkdf2Sync(pw, \"salt\", 1000, 32, \"sha256\");\nvar t1 = performance.now();\npw = createHash('sha256').update(pw).digest(); // HMAC specification for keys larger than block size\nvar key2 = pbkdf2.pbkdf2Sync(pw, \"salt\", 1000, 32, \"sha256\");\nvar t2 = performance.now();\n\nconsole.log(\"First took:  \" + (t1 - t0));\nconsole.log(\"Second took: \" + (t2 - t1));\nconsole.log(\"Generated keys:\");\nconsole.log(key1);\nconsole.log(key2);\n```\n\n### Impact\nDoS",
+      "screening": {
+        "diff": {
+          "counts": {
+            "source": 1,
+            "test": 1
+          },
+          "source_files": [
+            "lib/sync.js"
+          ],
+          "test_files": [
+            "test/index.js"
+          ],
+          "source_lines": 7,
+          "source_dirs": [
+            "lib"
+          ]
+        },
+        "repo": {
+          "truncated": false,
+          "root_manifests": [
+            "package.json"
+          ],
+          "test_files_in_repo": 3,
+          "has_dockerfile": false
+        },
+        "score": 10,
+        "fix_commit_date": "2026-09-29"
+      }
+    }
+  ]
+}

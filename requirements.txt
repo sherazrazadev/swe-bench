@@ -1,0 +1,5 @@
+requests>=2.31
+anthropic>=0.40      # only for TASK_GEN_BACKEND=api
+python-dotenv>=1.0
+pytest>=8.0
+harbor>=0.24         # stages 4-6 (also needs a running Docker daemon)

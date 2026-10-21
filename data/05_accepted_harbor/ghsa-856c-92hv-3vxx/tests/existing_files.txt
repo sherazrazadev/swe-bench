@@ -1,0 +1,15 @@
+tests/test_api.py
+tests/test_attach_http.py
+tests/test_config_http.py
+tests/test_decorator_notify.py
+tests/test_notification_manager.py
+tests/test_apprise_utils.py
+tests/test_config_base.py
+tests/test_plugin_matrix.py
+tests/test_apprise_config.py
+tests/test_plugin_custom_json.py
+tests/test_plugin_discord.py
+tests/test_plugin_email.py
+tests/test_plugin_fcm.py
+tests/test_plugin_flock.py
+tests/test_plugin_fluxer.py

@@ -1,0 +1,4 @@
+{
+  "_about": "Tasks whose evaluation runs must NOT feed the generator's knowledge (failure map, scoreboard, solved profile, failure analyses, learned ranking). Only tasks the user already acknowledged as defective. This does not change any verdict; C_RESULTS.md still lists them, marked WITHDRAWN.",
+  "GHSA-6x6c-w9w9-hv4h": "infracost: user-acknowledged defective task (2026-10-19). The 'configured registry host' functional test required a design only the reference fix makes, and the registry tests drove pre-fix dead code instead of a real entry point (rubric, 2026-10-19 repair trial). Its runs taught 'replicate this shape' from an unfair failure."
+}

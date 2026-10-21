@@ -1,0 +1,88 @@
+name: Stage 5 trial (DeepSeek + MiMo)
+
+# Runs the pipeline's stage 5 (model trial) for already stage-4-validated candidates, on GitHub-hosted runners
+# instead of locally. Needs no Claude/Anthropic credential: --skip-analysis / --skip-lessons drop the optional
+# LLM learning notes, which is the only part of stage 5 that would otherwise need one.
+#
+# Trigger manually: gh workflow run stage5-trial.yml --ref <branch> -f candidates=<id1,id2,id3>
+# Each candidate's data/03_environments/<id>/harbor_task/ must already be committed on <branch>
+# (see scripts/ci_push_trial_batch.sh), with any .git repo snapshot inside it renamed to .git.bak.
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidates:
+        description: "Comma-separated candidate IDs (e.g. GHSA-xxxx-yyyy-zzzz,PYSEC-2026-1234)"
+        required: true
+      max_parallel:
+        description: "How many candidates to trial at once"
+        required: false
+        default: "3"
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      ids: ${{ steps.parse.outputs.ids }}
+    steps:
+      - id: parse
+        run: |
+          python3 -c "
+          import json, os
+          ids = [s.strip() for s in '''${{ inputs.candidates }}'''.split(',') if s.strip()]
+          print('ids=' + json.dumps(ids))
+          " >> "$GITHUB_OUTPUT"
+
+  trial:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: ${{ fromJson(inputs.max_parallel) }}
+      fail-fast: false
+      matrix:
+        id: ${{ fromJson(needs.setup.outputs.ids) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore .git snapshots (stored as .git.bak to survive a plain git add)
+        run: |
+          find "data/03_environments/${{ matrix.id }}/harbor_task" -depth -name ".git.bak" -type d | while read -r d; do
+            mv "$d" "${d%.bak}"
+          done
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pipeline dependencies (includes the harbor CLI)
+        run: pip install -r requirements.txt
+
+      - name: Confirm Docker is available
+        run: docker info
+
+      - name: Run stage 5 for this candidate
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_MODEL: deepseek-flash
+          DEEPSEEK_REASONING_EFFORT: max
+          MIMO_API_KEY: ${{ secrets.MIMO_API_KEY }}
+          MIMO_BASE_URL: https://api.xiaomimimo.com/v1
+          MIMO_MODEL: mimo-v2.6-pro
+          EVAL_AGENT: claude-code
+          CLAUDE_CODE_VERSION: "2.1.292"
+          EVAL_ATTEMPTS: "3"
+          AGENT_TIMEOUT_SEC: "7200"
+          TIMEOUT_POLICY: exclude
+          FULL_BUDGET_SEC: "7000"
+          MAX_CONTAINERS: "4"
+        run: |
+          python run_pipeline.py --stage 5 --only "${{ matrix.id }}" \
+            --max-containers 4 --skip-analysis --skip-lessons
+
+      - name: Upload trial results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trial-${{ matrix.id }}
+          path: data/04_eval_runs/${{ matrix.id }}/
+          retention-days: 14

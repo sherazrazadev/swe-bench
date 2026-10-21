@@ -1,0 +1,50 @@
+# CWE-Bench pipeline as named containers (visible in Docker Desktop, logs live per stage).
+# Use scripts/pipeline (sets PROJECT_DIR) rather than calling docker compose directly.
+#
+#   cwe-prepare   stages 1-2  mine + screen
+#   cwe-generate  stage 3     checkout, Docker build check, Opus generation (Claude subscription token)
+#   cwe-evaluate  stages 4-6  rubric, oracle containers, DeepSeek/MiMo runs, packaging
+#   cwe-status    live status board (refreshes every 15s)
+#
+# The project is mounted at the SAME absolute path as on the host, so Harbor's build contexts and job
+# folders resolve identically for the host Docker daemon that runs the task containers.
+name: cwe-bench
+
+x-pipeline: &pipeline
+  image: cwe-bench-pipeline:latest
+  build:
+    context: .
+    dockerfile: docker/Dockerfile.pipeline
+  working_dir: ${PROJECT_DIR:?run via scripts/pipeline}
+  volumes:
+    - ${PROJECT_DIR}:${PROJECT_DIR}
+    - /var/run/docker.sock:/var/run/docker.sock
+  env_file: .env
+  environment:
+    HARBOR_BIN: harbor
+    CLAUDE_BIN: claude
+
+services:
+  prepare:
+    <<: *pipeline
+    container_name: cwe-prepare
+    profiles: [prepare]
+    command: ["python", "run_pipeline.py", "--stage", "1", "2", "--limit", "${LIMIT:-60}"]
+
+  generate:
+    <<: *pipeline
+    container_name: cwe-generate
+    profiles: [generate]
+    command: ["python", "run_pipeline.py", "--stage", "3", "--pilot", "${PILOT:-4}"]
+
+  evaluate:
+    <<: *pipeline
+    container_name: cwe-evaluate
+    profiles: [evaluate]
+    command: ["python", "run_pipeline.py", "--from-stage", "4", "--to-stage", "6"]
+
+  status:
+    <<: *pipeline
+    container_name: cwe-status
+    profiles: [status]
+    command: ["python", "run_pipeline.py", "--watch"]

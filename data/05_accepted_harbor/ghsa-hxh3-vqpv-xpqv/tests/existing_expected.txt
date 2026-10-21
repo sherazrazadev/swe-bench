@@ -1,0 +1,494 @@
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a GET request and context
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a GET request and return a 200 response
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a GET request and return a 200 response (ALBEvent)
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a GET request and return a 200 response (LambdaFunctionUrlEvent)
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a GET request and return a 200 response (LatticeProxyEvent)
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a GET request and return a 200 response if cookies match (ALBProxyEvent) with default headers
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a GET request and return a 200 response if cookies match (ALBProxyEvent) with multi value headers
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a GET request and return a 200 response with binary
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a GET request and return a 200 response with multi value multiQueryStringParameters (ALBProxyEvent)
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a GET request and return a 200 response with queryStringParameters (ALBProxyEvent)
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a GET request and return a 200 response with single value multiQueryStringParameters (ALBProxyEvent)
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a GET request and return a 404 response
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a GET request and return custom context
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a POST request and return a 200 response
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a POST request and return a 200 response (LambdaFunctionUrlEvent)
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a POST request and return a 200 response if cookies match (APIGatewayProxyEvent V1 and V2)
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a POST request and return a 200 response with cookies (ALBProxyEvent) with default headers
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a POST request and return a 200 response with cookies (ALBProxyEvent) with multi value headers
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a POST request and return a 200 response with cookies set (APIGatewayProxyEvent V1 and V2)
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a POST request and return a 200 response with cookies set (LatticeProxyEvent V2)
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a POST request with binary and return a 200 response
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a request and return a 200 response with Basic auth
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > Should handle a request and return a 401 response with Basic auth
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > headers > multi-value headers > Should extract multi-value headers and return 200 (ALBProxyEvent)
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > headers > multi-value headers > Should extract multi-value headers and return 200 (APIGatewayProxyEvent)
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > headers > multi-value headers > Should extract multi-value headers and return 200 (LatticeProxyEvent)
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > headers > single-value headers > Should extract single-value headers and return 200 (ALBProxyEvent)
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > headers > single-value headers > Should extract single-value headers and return 200 (APIGatewayProxyEvent)
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > AWS Lambda Adapter for Hono > headers > single-value headers > Should extract single-value headers and return 200 (APIGatewayProxyEventV2)
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > getProcessor function > Should return ALBProcessor for an ALBProxyEvent event
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > getProcessor function > Should return EventV1Processor for an event without requestContext
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > getProcessor function > Should return EventV2Processor for an APIGatewayProxyEventV2 event
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > streamHandle function > Should handle a GET request for an SSE stream and return the correct chunks
+runtime-tests/lambda/index.test.ts::runtime-tests/lambda/index.test.ts > streamHandle function > Should streamHandle a GET request and return a 200 response (LambdaFunctionUrlEvent)
+runtime-tests/node/index.test.ts::runtime-tests/node/index.test.ts > Basic > Should return 200 response
+runtime-tests/node/index.test.ts::runtime-tests/node/index.test.ts > Basic > Should return correct runtime name
+runtime-tests/node/index.test.ts::runtime-tests/node/index.test.ts > Basic Auth Middleware > Should authorize, return 200 Response
+runtime-tests/node/index.test.ts::runtime-tests/node/index.test.ts > Basic Auth Middleware > Should not authorize, return 401 Response
+runtime-tests/node/index.test.ts::runtime-tests/node/index.test.ts > Buffers > should allow returning buffers
+runtime-tests/node/index.test.ts::runtime-tests/node/index.test.ts > Buffers > should allow returning uint8array as well
+runtime-tests/node/index.test.ts::runtime-tests/node/index.test.ts > Environment Variables > Should return the environment variable
+runtime-tests/node/index.test.ts::runtime-tests/node/index.test.ts > JWT Auth Middleware > Should authorize, return 200 Response
+runtime-tests/node/index.test.ts::runtime-tests/node/index.test.ts > JWT Auth Middleware > Should not authorize, return 401 Response
+runtime-tests/node/index.test.ts::runtime-tests/node/index.test.ts > compress > Should be compressed a fetch response
+runtime-tests/node/index.test.ts::runtime-tests/node/index.test.ts > stream > Should call onAbort
+runtime-tests/node/index.test.ts::runtime-tests/node/index.test.ts > stream > Should not be called onAbort if already closed
+runtime-tests/node/index.test.ts::runtime-tests/node/index.test.ts > streamSSE > Should not be called onAbort if already closed
+src/adapter/aws-lambda/conninfo.test.ts::src/adapter/aws-lambda/conninfo.test.ts > getConnInfo > ALB > Should return the last IP from x-forwarded-for ('ALB appends real client IP')
+src/adapter/aws-lambda/conninfo.test.ts::src/adapter/aws-lambda/conninfo.test.ts > getConnInfo > ALB > Should return the last IP from x-forwarded-for ('attacker-controlled first IP')
+src/adapter/aws-lambda/conninfo.test.ts::src/adapter/aws-lambda/conninfo.test.ts > getConnInfo > ALB > Should return undefined when no x-forwarded-for header
+src/adapter/aws-lambda/conninfo.test.ts::src/adapter/aws-lambda/conninfo.test.ts > getConnInfo > API Gateway v1 > Should return the client IP from identity.sourceIp
+src/adapter/aws-lambda/conninfo.test.ts::src/adapter/aws-lambda/conninfo.test.ts > getConnInfo > API Gateway v2 > Should return the client IP from http.sourceIp
+src/adapter/bun/conninfo.test.ts::src/adapter/bun/conninfo.test.ts > getConnInfo > Should getConnInfo works when env is { server: server }
+src/adapter/bun/conninfo.test.ts::src/adapter/bun/conninfo.test.ts > getConnInfo > Should info is valid
+src/adapter/bun/conninfo.test.ts::src/adapter/bun/conninfo.test.ts > getConnInfo > Should return empty remote when requestIP returns null
+src/adapter/bun/conninfo.test.ts::src/adapter/bun/conninfo.test.ts > getConnInfo > Should throw error when requestIP is not function
+src/adapter/bun/conninfo.test.ts::src/adapter/bun/conninfo.test.ts > getConnInfo > Should throw error when user did not give server
+src/adapter/bun/conninfo.test.ts::src/adapter/bun/conninfo.test.ts > getConnInfo > should return undefined when addressType is invalid string
+src/adapter/bun/server.test.ts::src/adapter/bun/server.test.ts > getBunServer > Should success to pick Server
+src/adapter/bun/websocket.test.ts::src/adapter/bun/websocket.test.ts > createBunWebSocket() > Should return upgradeWebSocket and websocket
+src/adapter/bun/websocket.test.ts::src/adapter/bun/websocket.test.ts > createWSContext() > Should send() and close() works
+src/adapter/bun/websocket.test.ts::src/adapter/bun/websocket.test.ts > upgradeWebSocket() > Should events are called
+src/adapter/bun/websocket.test.ts::src/adapter/bun/websocket.test.ts > upgradeWebSocket() > Should expose the requested subprotocol on WSContext.protocol
+src/adapter/bun/websocket.test.ts::src/adapter/bun/websocket.test.ts > upgradeWebSocket() > Should response null when upgraded
+src/adapter/bun/websocket.test.ts::src/adapter/bun/websocket.test.ts > upgradeWebSocket() > Should response undefined when upgrade failed
+src/adapter/bun/websocket.test.ts::src/adapter/bun/websocket.test.ts > upgradeWebSocket() > Should set protocol to an empty string when no subprotocol is requested
+src/adapter/bun/websocket.test.ts::src/adapter/bun/websocket.test.ts > upgradeWebSocket() > Should throw error when server is null
+src/jsx/base.test.tsx::src/jsx/base.test.tsx > cloneElement > should clone a children element
+src/jsx/base.test.tsx::src/jsx/base.test.tsx > cloneElement > should clone an element with new children
+src/jsx/base.test.tsx::src/jsx/base.test.tsx > cloneElement > should clone an element with new props
+src/jsx/base.test.tsx::src/jsx/base.test.tsx > cloneElement > should self-close a wrapped empty tag
+src/jsx/base.test.tsx::src/jsx/base.test.tsx > createElement > should accept a Child-typed value as a child
+src/jsx/base.test.tsx::src/jsx/base.test.tsx > createElement > should preserve the SVG element shape
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > async : nested > error in child
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > async : nested > error in parent
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > async : nested > no error
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > async : setTimeout > fallback
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > async > error
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > async > error: Promise<string> from fallback
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > async > error: Promise<string> from fallbackRender
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > async > error: string content
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > async > error: string content from fallbackRender
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > async > no error
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > fallbackRender > error
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > fallbackRender > no error
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > onError > error
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > onError > no error
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > streaming : contains multiple suspense > error
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > streaming : contains multiple suspense > no error
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > streaming : contains multiple suspense > preserves callbacks from a thenable fallback
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > streaming : contains multiple suspense > renders fallback and reports error once when multiple children reject
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > streaming : contains multiple suspense > waits for an in-flight async fallback when multiple children reject
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > streaming : nested > error in child
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > streaming : nested > error in parent
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > streaming : nested > no error
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > streaming > error
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > streaming > no error
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > streaming > with StreamingContext
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > sync > boolean
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > sync > error
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > sync > error: Promise<string> from fallback
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > sync > error: Promise<string> from fallbackRender
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > sync > error: string content
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > sync > error: string content from fallbackRender
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > sync > no error
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > sync > nullish
+src/jsx/components.test.tsx::src/jsx/components.test.tsx > ErrorBoundary > sync > string content
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be able to render HTML element
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be able to render HTML element'
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be able to render HTML element''
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be able to render async component
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be able to render async component'
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be able to render async component''
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be able to render null
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be able to render null'
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be able to render null''
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be able to render number
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be able to render number'
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be able to render number''
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be able to render string
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be able to render string'
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be able to render string''
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be able to render undefined
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be able to render undefined'
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be able to render undefined''
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be called `onError` if there is an error
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be called `onError` if there is an error'
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should be called `onError` if there is an error''
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should not be called `onError` if there is no error
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should not be called `onError` if there is no error'
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should not be called `onError` if there is no error''
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should omit options, except onError
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should omit options, except onError'
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToReadableStream > Should omit options, except onError''
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should be able to render HTML element
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should be able to render HTML element'
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should be able to render HTML element''
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should be able to render null
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should be able to render null'
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should be able to render null''
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should be able to render number
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should be able to render number'
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should be able to render number''
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should be able to render string
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should be able to render string'
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should be able to render string''
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should be able to render undefined
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should be able to render undefined'
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should be able to render undefined''
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should omit options
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should omit options'
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should omit options''
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should raise error for async component
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should raise error for async component'
+src/jsx/dom/server.test.tsx::src/jsx/dom/server.test.tsx > renderToString > Should raise error for async component''
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > <Context> as a provider  > has a child
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > async component > isolates a shared async result between providers
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > async component > nested
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > async component > returning an array
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > async component > should isolate async component context between concurrent requests
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > async component > should keep captured context until a resumed async callback settles
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > async component > should pop captured context when a resumed async callback rejects
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > async component > should pop captured context when a resumed callback throws
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > async component > should reset context by error
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > async component > simple
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > async with html helper > should preserve context when using await before html helper
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > async with html helper > should preserve nested context when using await before html helper
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > default value
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > with .Provider > has a child
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > with .Provider > has children
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > with .Provider > nested
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > with .Provider > should reset context by error
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > with Suspence > Should preserve context in async component
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Context > with Suspence > Should preserve context in sync component
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > ErrorBoundary > awaits thenable fallback values
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > ErrorBoundary > prefers an empty fallback over fallbackRender
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > ErrorBoundary > renders async rejection fallback with the captured context while streaming
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Fragment > Should render a child
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Fragment > Should render a child - with `Fragment`
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Fragment > Should render children
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Fragment > Should render children - with `Fragment`
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Fragment > Should render nothing for empty Fragment
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > Fragment > Should render nothing for undefined
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > JSX middleware > Should be able to be used with html middleware
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > JSX middleware > Should handle async component error
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > JSX middleware > Should render HTML strings
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > JSX middleware > Should render async component
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > JSX middleware > Should render async component with "html" tagged template strings
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'attributeName'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'baseFrequency'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'calcMode'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'clipPathUnits'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'crossorigin'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'diffuseConstant'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'edgeMode'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'filterUnits'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'gradientTransform'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'gradientUnits'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'kernelMatrix'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'kernelUnitLength'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'keyPoints'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'keySplines'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'keyTimes'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'lengthAdjust'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'limitingConeAngle'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'markerHeight'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'markerUnits'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'markerWidth'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'maskContentUnits'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'maskUnits'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'numOctaves'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'pathLength'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'patternContentUnits'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'patternTransform'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'patternUnits'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'pointsAtX'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'pointsAtY'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'pointsAtZ'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'preserveAlpha'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'preserveAspectRatio'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'primitiveUnits'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'refX'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'refY'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'repeatCount'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'repeatDur'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'specularConstant'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'specularExponent'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'spreadMethod'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'startOffset'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'stdDeviation'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'stitchTiles'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'surfaceScale'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'systemLanguage'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'tableValues'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'targetX'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'targetY'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'textLength'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'viewBox'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'xChannelSelector'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > camelCase > 'yChannelSelector'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > data-* > 'data-foo'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > data-* > 'data-foo-bar'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > data-* > 'data-fooBar'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'alignmentBaseline'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'baselineShift'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'clipPath'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'clipRule'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'colorInterpolation'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'colorInterpolationFilters'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'dominantBaseline'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'fillOpacity'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'fillRule'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'floodColor'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'floodOpacity'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'fontFamily'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'fontSize'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'fontSizeAdjust'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'fontStretch'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'fontStyle'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'fontVariant'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'fontWeight'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'imageRendering'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'letterSpacing'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'lightingColor'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'markerEnd'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'markerMid'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'markerStart'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'overlinePosition'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'overlineThickness'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'paintOrder'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'pointerEvents'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'shapeRendering'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'stopColor'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'stopOpacity'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'strikethroughPosition'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'strikethroughThickness'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'strokeDasharray'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'strokeDashoffset'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'strokeLinecap'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'strokeLinejoin'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'strokeMiterlimit'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'strokeOpacity'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'strokeWidth'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'textAnchor'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'textDecoration'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'textRendering'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'transformOrigin'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'underlinePosition'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'underlineThickness'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'unicodeBidi'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'vectorEffect'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'wordSpacing'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > attribute > kebab-case > 'writingMode'
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > should normalize kebab-case attributes on the <svg> root element
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > should skip invalid attribute keys in SVG while preserving valid ones
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > simple
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > SVG > title element
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > StrictMode > Should render children
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > className > should convert to class attribute for custom elements
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > className > should convert to class attribute for intrinsic elements
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > className > should not convert to class attribute for custom components
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > ErrorBoundary
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > Fragment
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > StrictMode
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > Suspense
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > cloneElement
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > createContext
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > createElement
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > createRef
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > forwardRef
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > isValidElement
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > memo
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > startTransition
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > startViewTransition
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > use
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > useActionState
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > useCallback
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > useContext
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > useDebugValue
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > useDeferredValue
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > useEffect
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > useImperativeHandle
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > useInsertionEffect
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > useLayoutEffect
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > useMemo
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > useOptimistic
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > useReducer
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > useRef
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > useState
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > useSyncExternalStore
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > useTransition
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > useViewTransition
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > default export > version
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > memo > custom propsAreEqual is handed to the DOM renderer
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > memo > does not carry a context value into a later render
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > memo > does not reuse the result of a previous render
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > memo > props are updated
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Async component returning an array
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Async component returning an array of async components
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Boolean attribute > default prop value for checked
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Boolean attribute > default prop value for checked={true}
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Boolean attribute > default prop value for disabled
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Boolean attribute > default prop value for disabled={true}
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Boolean attribute > default prop value for multiple select
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Boolean attribute > default prop value for readonly
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Boolean attribute > default prop value for readonly={true}
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Boolean attribute > default prop value for select multiple={true}
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Boolean attribute > default prop value for selected
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Boolean attribute > default prop value for selected={true}
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Boolean attribute > no prop for checked={false}
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Boolean attribute > no prop for disabled={false}
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Boolean attribute > no prop for readonly={false}
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Boolean attribute > no prop for select multiple={false}
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Boolean attribute > no prop for selected={false}
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Boolean attribute > should render "false" value properly for other non-defined keys
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Boolean attribute > should support attributes for elements other than input
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Booleans, Null, and Undefined Are Ignored > false
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Booleans, Null, and Undefined Are Ignored > falsy value
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Booleans, Null, and Undefined Are Ignored > null
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Booleans, Null, and Undefined Are Ignored > true
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Booleans, Null, and Undefined Are Ignored > undefined
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Component returning a nested array
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Component returning an array
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Component returning an array escapes strings
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Component returning an array including async components
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Component returning an array preserves escaped string callbacks
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Component typed as FC returning an array
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Empty elements are rended without closing tag
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Empty elements with children are rended with children and closing tag
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > FC > Booleans, Null, and Undefined Are Ignored > false
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > FC > Booleans, Null, and Undefined Are Ignored > falsy value
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > FC > Booleans, Null, and Undefined Are Ignored > null
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > FC > Booleans, Null, and Undefined Are Ignored > true
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > FC > Booleans, Null, and Undefined Are Ignored > undefined
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > FC > Should define the type correctly
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Function > should be ignored used in on* props
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Function > should be ignored used in ref props
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Function > should raise an error if used in other props
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Functions as Children > Function
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > HtmlEscaped in props > should not be double-escaped
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Nested array
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Props Default to “True” > default prop value
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Props value is null
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > Props value is undefined
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > XSS prevention for attribute keys > Should skip attribute keys containing <
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > XSS prevention for attribute keys > Should skip attribute keys containing >
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > XSS prevention for attribute keys > Should skip attribute keys containing backslashes
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > XSS prevention for attribute keys > Should skip attribute keys containing backticks
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > XSS prevention for attribute keys > Should skip attribute keys containing double quotes
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > XSS prevention for attribute keys > Should skip attribute keys containing spaces
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > XSS prevention for attribute keys > Should skip invalid attribute keys before dangerouslySetInnerHTML handling
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > XSS prevention for attribute keys > Should skip invalid attribute keys before function prop validation
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > XSS prevention for attribute keys > Should skip invalid attribute keys before style serialization
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > XSS prevention for attribute keys > Should skip invalid attribute keys with Promise values
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > XSS prevention for attribute keys > Should still render valid attributes alongside invalid ones
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > dangerouslySetInnerHTML > Should get an error if both dangerouslySetInnerHTML and children are specified
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > dangerouslySetInnerHTML > Should render dangerouslySetInnerHTML
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > download attribute > <a download="test"></a> should be rendered as <a download="test"></a>
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > download attribute > <a download={false}></a> should be rendered as <a></a>
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > download attribute > <a download={true}></a> should be rendered as <a download=""></a>
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > download attribute > <a download></a> should be rendered as <a download=""></a>
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > head > Simple head elements should be rendered as is
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > programmatic tag names > Should allow compatible custom and namespaced tag names
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > programmatic tag names > Should throw when createElement() receives a tag name that can break out of the HTML context
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > programmatic tag names > Should throw when jsx() receives a tag name that can break out of the HTML context
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > programmatic tag names > Should throw when jsx() receives an invalid non-primitive tag name
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > style attribute > CSS injection prevention > should drop only the unsafe property and keep other safe properties
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > style attribute > CSS injection prevention > should drop quoted style values that use newlines to expose declaration separators
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > style attribute > CSS injection prevention > should drop style property names that can inject declarations
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > style attribute > CSS injection prevention > should drop style values containing ";" to prevent CSS injection
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > style attribute > CSS injection prevention > should drop style values that try to expose declarations through CSS curly blocks
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > style attribute > CSS injection prevention > should drop style values that try to hide declaration separators in CSS comments
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > style attribute > CSS injection prevention > should drop unterminated style values that can swallow following declarations
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > style attribute > CSS injection prevention > should keep numeric style values working
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > style attribute > CSS injection prevention > should keep semicolons inside quoted style values
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > style attribute > CSS injection prevention > should not throw when style values contain ";"
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > style attribute > CSS injection prevention > should still HTML-escape safe style values
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > style attribute > should convert the object to strings
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > style attribute > should not convert the strings
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > render to string > style attribute > should render variable without any name conversion
+src/jsx/index.test.tsx::src/jsx/index.test.tsx > version > should be defined with semantic versioning format
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > React 19 compatibility > should de-dupe stylesheet with precedence
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > React 19 compatibility > should hoist from deep nested component and keep duplicates
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > React 19 compatibility > should keep alternate-canonical-alternate order
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > React 19 compatibility > should keep canonical and alternates in source order
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > React 19 compatibility > should keep different stylesheets with same precedence
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > React 19 compatibility > should keep links from two components
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > React 19 compatibility > should keep mixed links and de-dupe only stylesheet
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > React 19 compatibility > should not de-dupe alternate links
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > React 19 compatibility > should not de-dupe canonical links
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > React 19 compatibility > should not de-dupe modulepreload links
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > React 19 compatibility > should not de-dupe preload links
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > React 19 compatibility > should not de-dupe stylesheet against preload with same href
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > React 19 compatibility > should not hoist stylesheet without precedence
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > should be de-duped by href
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > should be hoisted link tag
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > should be inserted as is if <head> is not present
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > should be ordered by precedence attribute
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > should not be hoisted if has no precedence attribute
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > link element > should not do special behavior if disabled is present
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > meta element > should be de-duped by name
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > meta element > should be hoisted meta tag
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > meta element > should not do special behavior if itemProp is present
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > script element > should be de-duped by href with async={true}
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > script element > should be hoisted script tag
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > script element > should be omitted "blocking", "onLoad" and "onError" props
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > script element > should not do special behavior if async is not present
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > style element > should be hoisted style tag
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > style element > should be sorted by precedence attribute
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > style element > should not be hoisted if href is not present
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > title element > should be hoisted title tag
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > title element > should hoist a title from an async component array
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > title element > should hoist a title with async children
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > document metadata > title element > should render a title with async children without a head element
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > form element > input element > should be omitted "formAction" prop if it is a function
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > form element > input element > should be rendered as is
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > form element > input element > should be rendered permalink
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > form element > should be omitted "action" prop if it is a function
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > form element > should be rendered permalink
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > form element > should not do special behavior if action is a string
+src/jsx/intrinsic-element/components.test.tsx::src/jsx/intrinsic-element/components.test.tsx > intrinsic element > form element > should not do special behavior if no action prop
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > Complex fallback content
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > In multiple Suspense, go ahead in the order of resolved
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > Multiple "await" call
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > Suspense / async component returning an array
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > Suspense / renderToReadableStream
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > Suspense with StreamingContext
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > Suspense with resolveStream
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > `throw promise` inside Suspense
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > async boolean children
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > async nullish children
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > boolean children
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > children Suspense
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > children Suspense: Suspense and string
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > closed()
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > isolates context between concurrent streaming renders
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > nested Suspense
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > nullish children
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > only a "false" child
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > pops buildDataStack when a deferred re-render rejects
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > preserves callbacks in a streamed async component array
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > reject()
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > renderToReadableStream(promise: Promise<HtmlEscapedString>)
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > renderToReadableStream(str: string)
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > renders Suspense fallback with outer context values
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > resolve(null)
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > resolve(undefined)
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > should not call onError when reader is cancelled during a slow callback resolution
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > should not throw ERR_INVALID_STATE when reader is cancelled during nested Suspense streaming
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > should not throw when cancelled before initial content resolves
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > simple content inside Suspense
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > use() > render to stream
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > use() > render to string
+src/jsx/streaming.test.tsx::src/jsx/streaming.test.tsx > Streaming > without children

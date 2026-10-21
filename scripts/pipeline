@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# CLI for the containerized pipeline.
+#   scripts/pipeline build                 build the pipeline image
+#   scripts/pipeline prepare [LIMIT]       stages 1-2 in container cwe-prepare
+#   scripts/pipeline generate [PILOT]      stage 3   in container cwe-generate
+#   scripts/pipeline evaluate              stages 4-6 in container cwe-evaluate
+#   scripts/pipeline run [PILOT] [LIMIT]   all three in order (stops at the first failure)
+#   scripts/pipeline status                live status board in container cwe-status (Ctrl-C to leave)
+#   scripts/pipeline once                  print the status board once (no container)
+set -euo pipefail
+cd "$(dirname "$0")/.."
+export PROJECT_DIR="$PWD"
+compose() { docker compose "$@"; }
+stage() {   # stage <service>: run one stage container in the foreground, stream its logs, return its exit code
+  local svc="$1"
+  echo ">>> $(date +%H:%M:%S) starting container cwe-$svc"
+  compose --profile "$svc" up --force-recreate --exit-code-from "$svc" "$svc"
+  echo ">>> $(date +%H:%M:%S) container cwe-$svc finished"
+}
+case "${1:-help}" in
+  build)    compose --profile prepare build ;;
+  prepare)  LIMIT="${2:-60}" stage prepare ;;
+  generate) PILOT="${2:-4}" stage generate ;;
+  evaluate) stage evaluate ;;
+  run)      export PILOT="${2:-4}" LIMIT="${3:-60}"; stage prepare && stage generate && stage evaluate ;;
+  status)   compose --profile status up --force-recreate status ;;
+  once)     .venv/bin/python run_pipeline.py --watch --once 2>/dev/null || python3 run_pipeline.py --watch --once ;;
+  *)        sed -n '2,10p' "$0" ;;
+esac
