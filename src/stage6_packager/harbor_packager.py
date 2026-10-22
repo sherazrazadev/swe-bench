@@ -2024,9 +2024,14 @@ def frontier_explanations(osv_id: str, src_task: Path, data_dir: Path, n_existin
                   "solver must find every place where the root cause lives and keep legitimate behaviour intact."
                   + (f" Trial evidence (DeepSeek V4.1 Flash and MiMo-V2.6-Pro, 3 attempts each, 2 h, offline): {trials}"
                      if trials else ""))
+    ext = data_dir / "03_environments" / osv_id / "oracle_extension.patch"
+    ext_files = patch_files(ext.read_text(encoding="utf-8", errors="replace")) if ext.is_file() else []
     solution = (f"solution/solve.sh overlays the upstream maintainers' fix onto /workspace: the post-fix versions of "
                 f"{shown}. The fix's own test changes are excluded; the verifier grades the oracle exactly like a "
-                "submission.")
+                "submission."
+                + (f" The upstream fix left the same gap open on a real route it never touched; the reference also closes "
+                   f"it the same way ({', '.join(f'`{f}`' for f in ext_files)}), and a test fails without that change."
+                   if ext_files else ""))
     verification = (
         "A separate, offline verifier image holds the same vulnerable project built the same way at /app. test.sh "
         "diffs the restored /workspace against that image state and applies only source changes (dependency manifests, "

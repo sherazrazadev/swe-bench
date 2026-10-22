@@ -54,6 +54,47 @@ WEAK / TOO EASY (do not use as the sole difficulty):
   always caught - TOO EASY.**
 - **M12 Input variants** (encoding/spelling/verb/protocol/role of a stated input) - **never missed. TOO EASY, remove.**
 - **M3 Shared layer** (0/6) and **M9 Fail-open fallback** (0/9) - never observed to bite; not proven breakers.
+  e.g. M3 astro's low-level fetch primitives under the reported integration; M9 portainer/seaweedfs allow when no
+  authenticator is set.
+- **M7 Ordering** - the check runs after an adjustment, or a side effect (mkdir, delete, copy, chmod) happens before
+  validation; TOCTOU. 0/2 with trial data - too little evidence either way. e.g. flyto-core clears the output directory
+  before validating it.
+
+### Rank by BOTH-model misses (our acceptance needs both models to fail)
+The miss rates above count a miss by EITHER model. Misses by BOTH models in the same task, per mechanism
+(both / siblings with trial data): **M6 4/17 (24%)**, **coupled traps 3/15 (20%)**, **M4 4/22 (18%)**, M10 1/11,
+M5 1/14, M2 4/73 (5%), M8 1/18, M1 2/99 (2%). So for a both-model breaker lead with M6 or M4 and pin a coupled value;
+M2 mostly bites one model at a time.
+
+### Worked examples per mechanism (colleague's tasks, real code)
+- M1: prompty T2 - the child-prompt tool path loaded during wire projection (missed by both).
+- M2: electron-builder T2 - the differential downloader follows redirects with every header.
+- M4: jackson any-setter has no view code (DeepSeek 6/6); hermes T4 tool-result envelope.
+- M5: protobuf.js T4 - `setOption` / `util.merge` treat inherited values as set.
+- M6: mcp-ts-sdk P1 - the zod schema strips the issuer on reload (DeepSeek 8/8); airflow T3 env-var spelling.
+- M8: langchain raw string-prefix allowlist (`/memories2`); airflow T10 team name with a separator.
+- M10: seaweedfs authorises against the ARN's account field; django-cms takes the parent from POST while the check
+  reads GET.
+- M11 / coupled: jackson - the visible type-id must still bind (broken in 4/6 runs on sib2).
+- M12 (too easy): typo3 soft-delete and partial-update verbs.
+
+### Pattern B needs an authored oracle - our pipeline cannot build it yet
+A B-ROUTE sibling is, by definition, a route the upstream fix never touched, so the upstream patch fails its test.
+The colleague's breakers use their OWN `solution/fix.patch` (jackson-sib's covers `SettableAnyProperty.java`, the
+any-setter route upstream left open), proven by the gate: oracle 1.0 twice, shallow and feature-removal fixes fail, an
+independently written correct fix still scores 1.0. Our oracle is the upstream patch and `trap.paths` must sit inside
+it, so every trap we build is A-FAR. Supporting B means letting the generator add an oracle extension for the B route.
+
+### Failures that were the TEST's fault (re-check before counting a miss)
+- vitest-api-fs-authz-inj: browser-command tests call the functions directly, so they reject a correct guard placed at
+  the dispatcher.
+- backstage-ds: the mock context crashes (`TypeError`) before the check while the test demands `InputError` - a correct
+  fix fails (~10 runs, confirmed).
+- litellm-ds: a functional test contradicts the instruction's "never".
+- protobuf.js-ds: a coupled contract the instruction never states. hazelcast-ds: a contract the fair-fix tightened.
+- prompty T2: part of the miss is a wording gap. flowise: the 0.0 runs executed 0 or 16 of 32 tests (infrastructure).
+Same lesson as our withdrawn infracost/oauth-providers: a test must accept every correct fix location and only assert
+what the report states.
 
 ### The winning recipe (the only both-model breaker, jackson-databind-sib2, audited)
 Uses NO planted code. A **Pattern B** route that **stacks several DIFFERENT mechanisms**: M4 (any-setter ignores views) +

@@ -18,6 +18,26 @@ from src.common.state_manager import StateManager, Status
 
 STAGE = "stage3_task_builder"
 MAX_GEN_FAILURES = 3
+MAX_BUILD_NET_ERRORS = 3     # runs whose build hit network/registry errors before a candidate is retired
+# GPU / ML-framework dependencies: the image build downloads gigabytes and fails or times out (lmdeploy, flyto-core
+# 2026-10-21); the task never reaches validation, so skip it before the 30-minute Docker build.
+HEAVY_ML_RE = re.compile(r"(?im)^[\s\"'\-]*(torch|torchvision|tensorflow(?:-gpu)?|jax\[|jaxlib|vllm|triton|deepspeed|"
+                         r"flash[-_]attn|xformers|nvidia-[a-z0-9-]+|cupy|onnxruntime-gpu|bitsandbytes)\b")
+
+
+def heavy_ml_deps(repo: Path) -> list[str]:
+    found: list[str] = []
+    for name in ("requirements.txt", "requirements-dev.txt", "requirements/base.txt", "pyproject.toml", "setup.py",
+                 "setup.cfg", "environment.yml"):
+        f = repo / name
+        if f.is_file():
+            try:
+                found += [m.group(1).lower() for m in HEAVY_ML_RE.finditer(f.read_text(errors="replace")[:200_000])]
+            except OSError:
+                pass
+    return sorted(set(found))
+
+
 MAX_BUILD_TIMEOUTS = 2       # build-check timeouts before a candidate is retired        # generation runs that produced no valid task before a candidate is retired
 MAX_REFUSALS = 3            # safety-filter refusals (all runs together) before a candidate is retired
 
@@ -193,6 +213,14 @@ def _buildable_ids(cfg: Config, src: Path, env_dir: Path, args: argparse.Namespa
             rec = state.get(STAGE, osv_id)
             if rec and rec.status is Status.REJECTED:
                 continue            # failed the build check earlier
+            heavy = heavy_ml_deps(env_dir / osv_id / "repo")
+            if heavy:
+                why = f"heavy ML/GPU dependencies {heavy[:4]}: the image cannot be built within budget"
+                state.mark(STAGE, osv_id, Status.REJECTED, why)
+                from src.common import knowledge
+                knowledge.record_outcome(cfg, osv_id, STAGE, "rejected_unbuildable", why)
+                log.warning("Retired before the build: heavy ML dependencies", extra={"osv_id": osv_id, "deps": heavy[:4]})
+                continue
             todo.append(osv_id)
         # Docker builds in parallel (3 at a time); results are applied in order afterwards.
         with ThreadPoolExecutor(max_workers=3) as pool:
@@ -216,7 +244,20 @@ def _buildable_ids(cfg: Config, src: Path, env_dir: Path, args: argparse.Namespa
                 else:
                     log.warning("Build check timed out; one more try next run", extra={"osv_id": osv_id})
             elif detail.startswith(build_check.TRANSIENT):
-                log.warning("Build check hit network/registry errors; will retry next run", extra={"osv_id": osv_id})
+                # retryable, but not forever: lmdeploy (GHSA-9xq9) held a batch slot in 9 cycles running on 2026-10-21
+                strikes_f = env_dir / osv_id / "build_net_errors.txt"
+                strikes = (int(strikes_f.read_text().strip() or 0) if strikes_f.is_file() else 0) + 1
+                strikes_f.write_text(str(strikes))
+                if strikes >= MAX_BUILD_NET_ERRORS:
+                    why = f"image build hit network/registry errors in {strikes} runs; retired"
+                    state.mark(STAGE, osv_id, Status.REJECTED, why)
+                    from src.common import knowledge
+                    knowledge.record_outcome(cfg, osv_id, STAGE, "rejected_unbuildable", why)
+                    log.warning("Retired: build keeps failing on network/registry errors",
+                                extra={"osv_id": osv_id, "strikes": strikes})
+                else:
+                    log.warning("Build check hit network/registry errors; will retry next run",
+                                extra={"osv_id": osv_id, "strikes": strikes})
             else:
                 state.mark(STAGE, osv_id, Status.REJECTED, detail)
                 from src.common import knowledge

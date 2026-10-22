@@ -19,7 +19,6 @@ import hashlib
 import json
 import os
 import re
-import threading
 from pathlib import Path
 from typing import Any, Optional
 
@@ -73,36 +72,8 @@ def fix_places(env: Path, existing: set[str]) -> list[str]:
     return sorted({p for p in declared if p in existing})     # a file the fix creates cannot be named in advance
 
 
-PROBE_TOTAL_TIMEOUT = float(os.environ.get("PROBE_TOTAL_TIMEOUT_SEC", "1200"))
-
-
 def ask(ep, prompt: str) -> str:
-    """One probe call, bounded in TOTAL wall time.
-
-    requests' `timeout` is a per-read gap, not a total budget: a server that trickles keepalive bytes resets it forever.
-    On 2026-10-21 one DeepSeek call held the same socket for 97 minutes and stalled the whole plan gate (no retry, no
-    timeout, 0% CPU). So the call runs in a daemon thread and is abandoned past the deadline - callers already treat an
-    exception as fail-open, which is the safe direction (the candidate proceeds and the error is recorded)."""
-    box: dict[str, Any] = {}
-
-    def run() -> None:
-        try:
-            box["value"] = _ask_once(ep, prompt)
-        except BaseException as e:            # noqa: BLE001 - re-raised on the caller's thread
-            box["error"] = e
-
-    t = threading.Thread(target=run, daemon=True, name=f"probe-{getattr(ep, 'tag', '?')}")
-    t.start()
-    t.join(PROBE_TOTAL_TIMEOUT)
-    if t.is_alive():      # daemon: the socket is abandoned and dies with the process
-        raise TimeoutError(f"probe call to {getattr(ep, 'tag', '?')} exceeded {PROBE_TOTAL_TIMEOUT:.0f}s total")
-    if "error" in box:
-        raise box["error"]
-    return box["value"]
-
-
-def _ask_once(ep, prompt: str) -> str:
-    r = requests.post(f"{ep.check_url}/chat/completions", timeout=(15, 900),
+    r = requests.post(f"{ep.check_url}/chat/completions", timeout=900,
                       headers={"Authorization": f"Bearer {ep.api_key}", "Content-Type": "application/json"},
                       # reasoning models spend the budget on thinking first: 8000 left DeepSeek's answer empty on 29/33
                       json={"model": ep.model.split("/")[-1], "max_tokens": int(os.environ.get("PROBE_MAX_TOKENS", "64000")),

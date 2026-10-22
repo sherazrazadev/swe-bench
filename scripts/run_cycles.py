@@ -34,8 +34,10 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from src.common.config import Config  # noqa: E402
 from src.common.state_manager import StateManager, Status  # noqa: E402
+from src.stage4_oracle_validator.oracle_runner import MAX_NO_VERDICT  # noqa: E402
 
 PY = str(ROOT / ".venv" / "bin" / "python")
+EVAL_LOCAL = True     # False with --no-eval: stage 5 runs on GitHub Actions in batches instead
 STOP = ROOT / "data" / "STOP_CYCLES"
 # A hung stage must never hold the queue: kill its whole process group after this many seconds
 # (0 disables). 8 h is longer than any normal stage, including 2 h model attempts in two phases.
@@ -109,6 +111,16 @@ def pending(cfg: Config) -> list[str]:
     env = cfg.stage_dir(3)
     out: list[str] = []
     with StateManager(cfg.state_db) as s:
+        def dead(k: str) -> bool:
+            # Can never progress, so it must not take a cycle slot: safeguards-flagged (never back to Claude), retired by
+            # the generator, rejected at stage 3, or dropped by the screener (stage 3 no longer sees it, so a rewrite
+            # it waits for never happens).
+            d = env / k
+            if (d / "safeguards_flagged.txt").is_file() or (d / "generation_unsuitable.txt").is_file():
+                return True
+            s2, s3 = s.get("stage2_screening", k), s.get("stage3_task_builder", k)
+            return bool((s3 and s3.status.value == "rejected") or (s2 and s2.status.value == "rejected"))
+
         terminal4 = {"failed_oracle", "rejected", "rejected_rubric"}
         for k in s.keys("stage3_task_builder", Status.DONE):
             d = env / k
@@ -118,14 +130,19 @@ def pending(cfg: Config) -> list[str]:
                 out.append(k)                                   # waiting for a rewrite
         out += [k for k in s.keys("stage3_task_builder", Status.DONE)                 # generated, never validated
                 if (env / k / "instruction.md").is_file() and not s.get("stage4_oracle_validator", k)]
-        out += [k for k in s.keys("stage4_oracle_validator", Status.FAILED)]          # no verdict yet
-        out += [k for k in s.keys("stage4_oracle_validator", Status.DONE)
-                if not s.get("stage5_evaluator", k)]                                  # validated, not evaluated
+        out += [k for k in s.keys("stage4_oracle_validator", Status.FAILED)           # no verdict yet, retries left
+                if s.should_process("stage4_oracle_validator", k, MAX_NO_VERDICT)
+                and (env / k / "instruction.md").is_file()]
+        if EVAL_LOCAL:      # with --no-eval, validated tasks wait for a GitHub Actions trial batch, not a cycle slot
+            out += [k for k in s.keys("stage4_oracle_validator", Status.DONE)
+                    if not s.get("stage5_evaluator", k)]                              # validated, not evaluated
         out += [k for k in s.keys("stage3_task_builder", Status.FAILED)
                 if s.should_process("stage3_task_builder", k, 3)]                    # generation without a task
                                                      # (a flagged candidate is retired, never sent to Claude again; FLAGGED_ROUTE)
-        out += [k for k in s.keys("stage5_evaluator", Status.FAILED)
-                if s.should_process("stage5_evaluator", k, 3)]                       # evaluation without a verdict
+        if EVAL_LOCAL:
+            out += [k for k in s.keys("stage5_evaluator", Status.FAILED)
+                    if s.should_process("stage5_evaluator", k, 3)]                   # evaluation without a verdict
+        out = [k for k in out if not dead(k)]
     return list(dict.fromkeys(out))
 
 
@@ -163,8 +180,9 @@ def cycle(cfg: Config, n: int, number: int, ids: Optional[list[str]] = None) -> 
     ids = ",".join(todo)
     w = str(n)
     steps = [("01_generate.log", ["--stage", "3", "--workers", w, "--only", ids]),
-             ("02_validate.log", ["--stage", "4", "--workers", w, "--only", ids]),
-             ("03_evaluate.log", ["--stage", "5", "6", "--workers", w, "--only", ids])]
+             ("02_validate.log", ["--stage", "4", "--workers", w, "--only", ids])]
+    if EVAL_LOCAL:
+        steps.append(("03_evaluate.log", ["--stage", "5", "6", "--workers", w, "--only", ids]))
     timed_out = False
     for name, args in steps:
         if stopped():
@@ -187,7 +205,8 @@ def cycle(cfg: Config, n: int, number: int, ids: Optional[list[str]] = None) -> 
         rlog, elog = run_dir / f"0{2 + 2 * rnd}_rewrite{rnd}.log", run_dir / f"0{3 + 2 * rnd}_evaluate_rewrite{rnd}.log"
         run(["--stage", "3", "--workers", w, "--only", ",".join(again)], rlog, GEN_STEP_TIMEOUT)
         run(["--stage", "4", "--workers", w, "--only", ",".join(again)], rlog)
-        run(["--stage", "5", "6", "--workers", w, "--only", ",".join(again)], elog)
+        if EVAL_LOCAL:
+            run(["--stage", "5", "6", "--workers", w, "--only", ",".join(again)], elog)
     subprocess.run([PY, "-m", "src.common.results_report"], cwd=ROOT, capture_output=True)
     summary = summarize(cfg, todo)
     (run_dir / "SUMMARY.md").write_text(summary)
@@ -218,7 +237,12 @@ def main() -> int:
     p.add_argument("--size", type=int, default=6, help="tasks per cycle = parallel workers per stage (default 6)")
     p.add_argument("--cycles", type=int, default=0, help="number of cycles (0 = until STOP or nothing left)")
     p.add_argument("--ids", default="", help="comma-separated task ids for the FIRST cycle (later cycles pick as usual)")
+    p.add_argument("--no-eval", action="store_true",
+                   help="generate + validate only; validated tasks wait for a GitHub Actions trial batch "
+                        "(scripts/ci_push_trial_batch.sh) instead of a local stage 5")
     a = p.parse_args()
+    global EVAL_LOCAL
+    EVAL_LOCAL = not a.no_eval
     first_ids = [i for i in re.split(r"[\s,]+", a.ids) if i]
     cfg = Config.load(None)
     STOP.unlink(missing_ok=True)

@@ -41,7 +41,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Optional
 
 from src.common.llm import CliBackend, HandoffBackend, HandoffPending, OutputLimitExceeded, QuotaExhausted, SafeguardsFlagged, normalize_model  # noqa: F401,E501
@@ -51,6 +51,8 @@ log = logging.getLogger(__name__)
 INSTRUCTION_NAME = "instruction.md"
 TESTS_NAME = "hidden_tests.py"
 PATCH_NAME = "oracle_solution.patch"
+UPSTREAM_PATCH_NAME = "oracle_solution.upstream.patch"   # the upstream fix alone, when a Pattern B extension was merged
+EXTENSION_NAME = "oracle_extension.patch"                # the extension alone (Pattern B routes), for audit
 REPO_DIRNAME = "repo"
 META_NAME = "generation_meta.json"
 
@@ -384,11 +386,22 @@ place the reference fix hardens; give EACH its own test_security_* reached throu
 repair that skips any one place fails. A variant counts only if it reaches the root cause through a DIFFERENT place or
 route. Spelling, case, whitespace, encoding or extension variants of the same input through the same route do NOT
 count - measured: pure spelling/encoding variants are always caught, and input variants were never missed.
-Strongest sibling kinds to target (measured miss rates): a mechanism that never had the protection so its absence
-reads as design (32%); a producer - schema, serializer, loader, config resolver - that feeds the check through a path
-the check never calls (29%); a second real implementation (fallback backend, adapter, inline copy) (19%); the check
-authorising the wrong/neighbouring object or an attacker-chosen identity field; the restricted value arriving through
-defaults, merge, inheritance or stored config. Prefer REAL siblings the upstream fix also changed or never touched.
+Strongest sibling kinds, ranked by how often they beat BOTH models (a task is accepted only when both fail): a
+producer - schema, serializer, loader, config resolver - that feeds the check through a path the check never calls (M6,
+24%; e.g. a schema strips the issuer on reload); a COUPLED legitimate value next to the bad one that the natural
+over-broad fix breaks (20%; e.g. the visible type-id must still bind); a mechanism that never had the protection so
+its absence reads as design (M4, 18%; e.g. an any-setter route with no view code); the check authorising the wrong or
+neighbouring object or an attacker-chosen identity field (M10); the restricted value arriving through defaults, merge,
+inheritance or stored config (M5). WEAK on their own: a second implementation (M2, 5% both) or another handler reaching
+the same sink (M1, 2% both) - use them only next to one of the above. The only measured both-model breaker stacks M4 +
+M10/M11 + M5 + a coupled value on ONE real route. Never plant code: every hidden place is real.
+PATTERN B (strongest origin, 25% missed): a REAL route with the same missing protection that the upstream fix never
+touched. If your design (or the approved plan) has one, close it in an <oracle_extension_json> block: minimal
+search/replace edits on PRE-patch source files the upstream fix does NOT change, written the way the maintainers fixed
+the reported route. The reference solution becomes upstream fix + extension; the pipeline proves each extension file is
+needed (your tests must fail without it) and that the shallow fix still fails. List every extension file in fix_places
+(and trap.paths when it is the hidden place), give it its own test_security_* through its own public entry point, and
+make the "alternative" check patch close it too.
 test_functional_* (at least {min_func}, ideally 4-8): Pass on both vulnerable and fixed code.
 Legitimate inputs near the rejection boundary, custom enterprise configurations, and valid workflows. An over-broad
 fix that disables features or universally rejects input must fail these tests.
@@ -411,7 +424,8 @@ Artifact 3: check_patches - Three Validation Fixes
 Provide search/replace edits on pre-patch source files to verify test suite discrimination:
 "shallow": Quick band-aid fixing only the primary trigger. Must pass >= 1 security test, but FAIL >= 1 security variant.
 "removal": Over-restrictive fix (disables feature/returns early). Must FAIL >= 1 functional test.
-"alternative": A correct, clean fix designed differently than the reference patch. Must PASS ALL tests.
+"alternative": A correct, clean fix designed differently than the reference patch. Must PASS ALL tests (so it also
+closes every Pattern B route).
 Output Format (Strict XML Blocks Only)
 Return ONLY these four blocks, nothing else:
 <instruction_md>
@@ -450,6 +464,11 @@ Return ONLY these four blocks, nothing else:
 "alternative": [...]
 }}
 </check_patches_json>
+<oracle_extension_json>
+{{"edits": [{{"file": "<Pattern B source file the upstream fix never changes>", "search": "<exact existing code>",
+             "replace": "<the same protection the upstream fix adds on the reported route>"}}]}}
+</oracle_extension_json>
+(OPTIONAL - only when the design has a Pattern B route; omit the block entirely otherwise.)
 """
 
 
@@ -657,14 +676,27 @@ def approved_plan_section(env_dir: Path) -> str:
         gate = json.loads((env_dir / "plan_gate.json").read_text())
     except (OSError, ValueError):
         return ""
-    plan = gate.get("plan") if gate.get("verdict") == "proceed" else None
-    if not isinstance(plan, dict):
+    approved = gate.get("verdict") == "proceed"
+    # advisory mode (calibration): the gate records but does not block, so the best draft still guides generation
+    advisory = gate.get("mode") == "advisory" and gate.get("verdict") in ("too_easy", "unfair")
+    plan = gate.get("plan") if (approved or advisory) else None
+    if not isinstance(plan, dict) or plan.get("verdict") == "unsuitable":
         return ""
-    notes = (gate.get("review") or {}).get("required_changes") or []
+    notes = list((gate.get("review") or {}).get("required_changes") or [])
+    if advisory:
+        notes = [f"the pre-build review rejected this plan as {gate.get('verdict')}: {gate.get('why', '')[:600]}"] + notes
     extra = ("\nThe reviewer requires these changes:\n" + "\n".join(f"- {n}" for n in notes)) if notes else ""
-    return ("\n\n# Approved design plan (passed the pre-build review and the self-solve probe)\n"
+    b_routes = [h.get("path") for h in plan.get("hidden_places") or [] if isinstance(h, dict)
+                and (h.get("in_upstream_fix") is False or str(h.get("in_upstream_fix")).lower().startswith("false"))]
+    b_note = (f"\nPattern B places in this plan (the upstream fix never touched them): {b_routes}. Close each one in the "
+              "<oracle_extension_json> block, list it in fix_places and trap.paths, and give it its own test_security_*."
+              if b_routes else "")
+    head = ("# Approved design plan (passed the pre-build review and the self-solve probe)" if approved else
+            "# Design plan (the pre-build review had concerns - fix them while building it)")
+    return (f"\n\n{head}\n"
             "Build THIS design. You may refine details, but do not drop a hidden place or a mechanism, and do not "
-            "describe a hidden place in the report.\n```json\n" + json.dumps(plan, indent=2)[:8000] + "\n```" + extra + "\n")
+            "describe a hidden place in the report.\n```json\n" + json.dumps(plan, indent=2)[:8000] + "\n```" + extra
+            + b_note + "\n")
 
 
 def stage4_checks_text() -> str:
@@ -885,6 +917,27 @@ def localizing_identifiers(patch: str) -> set[str]:
     return {n for n in names if n.lower() not in GENERIC_NAMES}
 
 
+TRAP_GENERIC_STEMS = {"index", "init", "__init__", "main", "mod", "utils", "util", "helpers", "types", "config",
+                      "constants"}
+
+
+def names_hidden_place(text: str, paths: list[str], product: frozenset[str] = frozenset()) -> list[str]:
+    """Hidden places a report (or a plan's report sketch) names. A file name with its extension, or its directory/stem,
+    always counts; a code-like stem (camelCase, snake_case, digits) counts as a word; a plain-word stem (`http`, `file`,
+    `server`, `proxy`) only when written as code - in backticks or as a call. The old bare-word match rejected apprise's
+    report 3 times for the word "http" and 12 plan sketches for words like "server" and "confluence" (2026-10-21/22)."""
+    low = text.lower()
+    out = []
+    for p in paths:
+        pp = PurePosixPath(p)
+        explicit = pp.name.lower() in low or str(pp).lower() in low or f"{pp.parent.name}/{pp.stem}".lower() in low
+        plain = not re.search(r"[a-z][A-Z]|_|\d|^[A-Z][a-z]+[A-Z]", pp.stem)
+        if explicit or (pp.stem.lower() not in TRAP_GENERIC_STEMS and not (plain and pp.stem.lower() in product)
+                        and identifier_leaks(text, {pp.stem})):
+            out.append(p)
+    return out
+
+
 def identifier_leaks(md: str, idents: set[str]) -> list[str]:
     """Code-like names (camelCase, snake_case, digits, Pascal with an inner capital) leak when they appear as words; a
     plain lowercase word (e.g. `quote`) only when written as code - in backticks or as a call."""
@@ -919,6 +972,58 @@ def extract_check_patches(text: str, repo: Path) -> dict[str, str]:
     if len(set(out.values())) < len(out):
         raise GenerationInvalid("The three check patches must differ from each other.")
     return out
+
+
+def extract_oracle_extension(text: str, repo: Path, upstream_files: list[str]) -> str:
+    """Optional <oracle_extension_json> -> unified diff closing Pattern B routes (real routes with the same gap that the
+    upstream fix never touched). The reference solution becomes upstream fix + extension. It may only edit source files
+    the upstream fix does NOT change, so the two diffs stack without conflict. "" when the block is absent."""
+    m = re.search(r"<oracle_extension_json>\s*(.*?)\s*</oracle_extension_json>", text, re.DOTALL)
+    if not m:
+        return ""
+    raw = m.group(1).strip()
+    fence = re.match(r"^```(?:json)?\s*\n(.*?)\n```$", raw, re.DOTALL)
+    try:
+        spec = json.loads(fence.group(1) if fence else raw)
+    except json.JSONDecodeError as e:
+        raise GenerationInvalid(f"<oracle_extension_json> is not valid JSON: {e}")
+    edits = spec.get("edits") if isinstance(spec, dict) else spec
+    if edits in (None, []):
+        return ""
+    if not isinstance(edits, list):
+        raise GenerationInvalid("<oracle_extension_json> must be {\"edits\": [{file, search, replace}, ...]}.")
+    clash = sorted({str(e.get("file", "")).strip().lstrip("/") for e in edits if isinstance(e, dict)} & set(upstream_files))
+    if clash:
+        raise GenerationInvalid(f"<oracle_extension_json> edits files the upstream fix already changes: {clash}. The "
+                                "extension is only for Pattern B routes the upstream fix never touched; a file the "
+                                "upstream fix changes is already covered by the reference patch.")
+    return edits_to_patch("oracle_extension", edits, repo)
+
+
+def merge_oracle_extension(env_dir: Path, ext_diff: str) -> None:
+    """Reference solution = upstream fix + extension, written to oracle_solution.patch so every consumer (stage 4 oracle
+    runs, the leave-one-file-out coverage check, packaging) uses it unchanged. The upstream-only patch is kept in
+    oracle_solution.upstream.patch and restored before a regeneration (restore_upstream_patch)."""
+    upstream_path = env_dir / UPSTREAM_PATCH_NAME
+    if not upstream_path.is_file():
+        shutil.copy2(env_dir / PATCH_NAME, upstream_path)
+    upstream = upstream_path.read_text(encoding="utf-8", errors="replace")
+    combined = upstream if upstream.endswith("\n") else upstream + "\n"
+    combined += ext_diff
+    chk = subprocess.run(["git", "apply", "--check", "-"], cwd=env_dir / REPO_DIRNAME, input=combined,
+                         capture_output=True, text=True)
+    if chk.returncode != 0:
+        raise GenerationInvalid(f"upstream fix + oracle extension do not apply together: {chk.stderr.strip()[:300]}")
+    write_atomic(env_dir / EXTENSION_NAME, ext_diff)
+    write_atomic(env_dir / PATCH_NAME, combined)
+
+
+def restore_upstream_patch(env_dir: Path) -> None:
+    """A regenerated design starts from the upstream fix again (an old extension must not stack on a new design)."""
+    upstream_path = env_dir / UPSTREAM_PATCH_NAME
+    if upstream_path.is_file():
+        shutil.copy2(upstream_path, env_dir / PATCH_NAME)
+        (env_dir / EXTENSION_NAME).unlink(missing_ok=True)
 
 
 def edits_to_patch(kind: str, edits: list, repo: Path) -> str:
@@ -1066,8 +1171,7 @@ def validate_trap(md: str, task_meta: dict, repo_dir: Path, patch_sources: Optio
     if outside:
         raise GenerationInvalid(f"every metadata.trap.paths entry must also be listed in metadata.fix_places, so the "
                                 f"coverage check can prove the tests need it; missing from fix_places: {outside}")
-    report = md.lower()
-    named = [p for p in paths if re.search(r"(?<![a-z0-9_])" + re.escape(Path(p).stem.lower()) + r"(?![a-z0-9_])", report)]
+    named = names_hidden_place(md, paths)
     if named:
         raise GenerationInvalid(f"the report names or hints at the trap file(s) {named}: the trap only works when "
                                 "the report localises nothing beyond the reported entry point. Rewrite the report "
@@ -1313,7 +1417,8 @@ def call_model(client, model: str, messages: list[dict], max_tokens: int) -> tup
 SPLIT_DESIGN_SUFFIX = """
 
 # Split generation (this request)
-Return ONLY the `<instruction_md>`, `<task_metadata_json>` and `<check_patches_json>` blocks. Do NOT write the
+Return ONLY the `<instruction_md>`, `<task_metadata_json>` and `<check_patches_json>` blocks (plus
+`<oracle_extension_json>` if your design has a Pattern B route). Do NOT write the
 <hidden_tests_py> block; it is requested in a separate step. Keep the check patches minimal (only the edits that
 demonstrate shallow / removal / alternative behaviour).
 """
@@ -1421,16 +1526,39 @@ def _run_phase(client, ctx: Context, phase: str, prompt: str, model: str, max_to
     raise GenerationInvalid(f"no valid {phase} output after {attempt} attempts: {last_err}")
 
 
+def validate_extension_leaks(md: str, ext: str) -> None:
+    """The report must not name a Pattern B route either (its file or the functions the extension edits)."""
+    if not ext:
+        return
+    lowered = md.lower()
+    named = [f for f in parse_changed_files(ext) if f.lower() in lowered or (len(Path(f).name) >= 4 and Path(f).name.lower() in lowered)]
+    named += identifier_leaks(md, localizing_identifiers(ext))
+    if named:
+        raise GenerationInvalid(f"instruction.md names a Pattern B route the oracle extension closes: {sorted(set(named))}. "
+                                "The report describes only the route the user hit.")
+
+
+def _accept_design_artifacts(ctx: Context, text: str, md: str, task_meta: dict) -> dict[str, str]:
+    """Shared by both generation modes: optional oracle extension (Pattern B), trap and leak checks, check patches."""
+    repo = ctx.env_dir / REPO_DIRNAME
+    ext = extract_oracle_extension(text, repo, ctx.changed_files)
+    # measured: most solved tasks reached every variant through the reported entry point
+    validate_trap(md, task_meta, repo,
+                  patch_source_files(ctx.changed_files + parse_changed_files(ext), ctx.meta.get("ecosystem", "")))
+    validate_instruction(md, ctx)
+    validate_extension_leaks(md, ext)
+    patches = extract_check_patches(text, repo)
+    validate_self_attack(task_meta, patches)
+    if ext:
+        patches["oracle_extension"] = ext      # merged into oracle_solution.patch by process(), not a check patch
+    return patches
+
+
 def _accept_design(ctx: Context):
     def accept(text: str):
         md = extract_instruction(text)
         task_meta = extract_metadata(text)
-        # measured: most solved tasks reached every variant through the reported entry point
-        validate_trap(md, task_meta, ctx.env_dir / REPO_DIRNAME,
-                      patch_source_files(ctx.changed_files, ctx.meta.get("ecosystem", "")))
-        validate_instruction(md, ctx)
-        patches = extract_check_patches(text, ctx.env_dir / REPO_DIRNAME)
-        validate_self_attack(task_meta, patches)
+        patches = _accept_design_artifacts(ctx, text, md, task_meta)
         return md, task_meta, patches
     return accept
 
@@ -1488,9 +1616,13 @@ def generate(client, ctx: Context, model: str, max_tokens: int, max_attempts: in
     design_prompt = ctx.prompt + SPLIT_DESIGN_SUFFIX
     (md, task_meta, patches), u1 = _run_phase(
         client, ctx, "design", design_prompt, model, max_tokens, max_attempts, fallback_model, _accept_design(ctx))
+    ext = patches.get("oracle_extension", "")
+    ext_view = ("\n\n# Oracle extension (Pattern B - part of the reference solution, applied together with the upstream "
+                "fix; each route it closes needs its own test_security_* through its own public entry point)\n```diff\n"
+                + ext[:20_000] + "\n```") if ext else ""
     tests_prompt = (ctx.prompt + "\n\n# Approved design (previous step)\n<instruction_md>\n" + md
                     + "\n</instruction_md>\n<task_metadata_json>\n"
-                    + json.dumps(task_meta, indent=2) + "\n</task_metadata_json>" + SPLIT_TESTS_SUFFIX)
+                    + json.dumps(task_meta, indent=2) + "\n</task_metadata_json>" + ext_view + SPLIT_TESTS_SUFFIX)
     (code, justifs), u2 = _run_phase(
         client, ctx, "tests", tests_prompt, model, max_tokens, max_attempts, fallback_model,
         _accept_tests(ctx, md, task_meta.get("test_justifications") or {}))
@@ -1505,12 +1637,8 @@ def _generate_single(client, ctx: Context, model: str, max_tokens: int, max_atte
         md, code = extract_blocks(text)
         code = no_silent_skips(ensure_pytest_import(code))
         task_meta = extract_metadata(text)
-        validate_trap(md, task_meta, ctx.env_dir / REPO_DIRNAME,
-                      patch_source_files(ctx.changed_files, ctx.meta.get("ecosystem", "")))
-        validate_instruction(md, ctx)
         validate_tests(code, ctx)
-        patches = extract_check_patches(text, ctx.env_dir / REPO_DIRNAME)
-        validate_self_attack(task_meta, patches)
+        patches = _accept_design_artifacts(ctx, text, md, task_meta)
         validate_justifications(code, md, task_meta.get("test_justifications") or {})
         validate_design_bound(ctx.env_dir, code, md)
         return md, code, task_meta, patches
@@ -1588,6 +1716,7 @@ def process(env_dir: Path, candidates: dict, client, args) -> tuple[str, str, st
         return osv_id, "failed", "aborted: quota exhausted earlier in this run"
     if already_done(env_dir):
         return osv_id, "skipped", "already generated"
+    restore_upstream_patch(env_dir)
     try:
         ctx = build_context(env_dir, candidates)
     except ValueError as e:
@@ -1661,6 +1790,16 @@ def process(env_dir: Path, candidates: dict, client, args) -> tuple[str, str, st
         log.warning("[%s] API FAILURE (%s): %s", osv_id, type(e).__name__, e)
         return osv_id, "failed", f"{type(e).__name__}: {e}"
 
+    ext = patches.pop("oracle_extension", "")
+    if ext:
+        try:
+            merge_oracle_extension(env_dir, ext)
+        except GenerationInvalid as e:
+            log.warning("[%s] FAILED validation: %s", osv_id, e)
+            return osv_id, "failed", str(e)
+        task_meta["oracle_extension_files"] = parse_changed_files(ext)
+        log.info("[%s] Pattern B: oracle extended beyond the upstream fix  files=%s", osv_id,
+                 task_meta["oracle_extension_files"])
     try:
         write_atomic(env_dir / TESTS_NAME, code)
         write_atomic(env_dir / "task_metadata.json", json.dumps(task_meta, indent=2))
