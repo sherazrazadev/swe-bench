@@ -240,12 +240,12 @@ def analyse(cfg: Config, osv_id: str, backend=None, force: bool = False) -> Opti
     per = max(2000, room // max(1, len(blocks)))
     attempts = "\n\n".join(b if len(b) <= per else b[:per] + "\n[... attempt evidence truncated ...]" for b in blocks)
     prompt = PROMPT.format(attempts=attempts, **fields)
-    if backend is None:
-        from src.common.llm import CliBackend
-        backend = CliBackend(cfg.claude_bin, 1800.0)
-    from src.common.llm import SafeguardsFlagged
+    from src.common.llm import SafeguardsFlagged, review_fallback_model, review_vendor, reviewer_backend
+    review_model = cfg.anthropic_model
+    if review_vendor() != "claude" or backend is None:
+        backend, review_model = reviewer_backend(cfg, 1800.0)     # REVIEW_BACKEND: no Claude quota by default
     text = ""
-    for model in dict.fromkeys([cfg.anthropic_model, os.environ.get("GEN_FALLBACK_MODEL", "claude-opus-4-8")]):
+    for model in [m for m in dict.fromkeys([review_model, review_fallback_model(review_model)]) if m]:
         try:
             text, _ = backend.complete(model, SYSTEM, [{"role": "user", "content": prompt}], 6000)
         except SafeguardsFlagged as e:   # never retried or rerouted

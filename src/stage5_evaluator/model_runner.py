@@ -452,9 +452,12 @@ def main(argv: Optional[list[str]] = None, cfg: Optional[Config] = None) -> int:
         log.info("Evaluating", extra={"validated": len(ids), "to_evaluate": len(todo), "pending_analysis": len(pending),
                                       "attempts": cfg.eval_attempts, "parallel_tasks": workers,
                                       "container_budget": budget, "peak_containers_per_task": peak_per_task})
-        backend = CliBackend(cfg.claude_bin, 900.0)
+        from src.common.llm import reviewer_backend, review_vendor
+        # only when notes or lessons need it: GitHub Actions runners have no `claude` binary, and CliBackend exits
+        # when it is missing (the trial itself never needs it)
+        backend, review_model = (None, "") if (args.skip_analysis and args.skip_lessons) else reviewer_backend(cfg, 900.0)
         analysis_backend = None if args.skip_analysis else backend   # learning notes only, never the verdict
-        model = args.model or cfg.anthropic_model
+        model = args.model or (review_model if review_vendor() != "claude" else cfg.anthropic_model)
 
         counts: dict[str, int] = {}
         failed_ids: list[str] = []

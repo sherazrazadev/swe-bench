@@ -942,11 +942,16 @@ def identifier_leaks(md: str, idents: set[str]) -> list[str]:
     """Code-like names (camelCase, snake_case, digits, Pascal with an inner capital) leak when they appear as words; a
     plain lowercase word (e.g. `quote`) only when written as code - in backticks or as a call."""
     out = []
+    # real code spans only: finditer pairs backticks left to right, so prose BETWEEN two spans is never "code"
+    # (a `[^`]*` search did match from one span's closing backtick to the next one's opening - apprise 2026-10-22)
+    spans = [m.group(1) for m in re.finditer(r"`([^`\n]+)`", md)]
     for name in sorted(idents):
         code_like = bool(re.search(r"[a-z][A-Z]|_|\d|^[A-Z][a-z]+[A-Z]", name))
-        if code_like and re.search(rf"(?<![\w$]){re.escape(name)}(?![\w$])", md):
+        word = re.compile(rf"(?<![\w$]){re.escape(name)}(?![\w$])", 0 if code_like else re.IGNORECASE)
+        if code_like and word.search(md):
             out.append(name)
-        elif not code_like and re.search(rf"`[^`]*\b{re.escape(name)}\b[^`]*`|\b{re.escape(name)}\s*\(", md, re.IGNORECASE):
+        elif not code_like and (any(word.search(s) for s in spans)
+                                or re.search(rf"\b{re.escape(name)}\s*\(", md, re.IGNORECASE)):
             out.append(name)
     return out
 
@@ -974,6 +979,18 @@ def extract_check_patches(text: str, repo: Path) -> dict[str, str]:
     return out
 
 
+BUILT_FILE_RE = re.compile(r"\.min\.[a-z]+$|\.bundle\.[a-z]+$|(^|/)(dist|build|out|vendor|node_modules|bundles?)/", re.I)
+
+
+def _looks_generated(path: Path) -> bool:
+    """A minified or bundled file committed to the repo (GHSA-xvq9: the extension edited i18nextHttpBackend.min.js)."""
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()[:400]
+    except OSError:
+        return False
+    return any(len(l) > 1500 for l in lines)
+
+
 def extract_oracle_extension(text: str, repo: Path, upstream_files: list[str]) -> str:
     """Optional <oracle_extension_json> -> unified diff closing Pattern B routes (real routes with the same gap that the
     upstream fix never touched). The reference solution becomes upstream fix + extension. It may only edit source files
@@ -992,7 +1009,13 @@ def extract_oracle_extension(text: str, repo: Path, upstream_files: list[str]) -
         return ""
     if not isinstance(edits, list):
         raise GenerationInvalid("<oracle_extension_json> must be {\"edits\": [{file, search, replace}, ...]}.")
-    clash = sorted({str(e.get("file", "")).strip().lstrip("/") for e in edits if isinstance(e, dict)} & set(upstream_files))
+    files = {str(e.get("file", "")).strip().lstrip("/") for e in edits if isinstance(e, dict)}
+    built = sorted(f for f in files if BUILT_FILE_RE.search(f) or _looks_generated(repo / f))
+    if built:
+        raise GenerationInvalid(f"<oracle_extension_json> edits generated/minified/bundled files {built}. A Pattern B "
+                                "route must be real source code a maintainer edits; change the source the bundle is "
+                                "built from, or drop the extension.")
+    clash = sorted(files & set(upstream_files))
     if clash:
         raise GenerationInvalid(f"<oracle_extension_json> edits files the upstream fix already changes: {clash}. The "
                                 "extension is only for Pattern B routes the upstream fix never touched; a file the "
@@ -1433,6 +1456,30 @@ The report is fixed: a test no sentence justifies is unfair - change or drop the
 `test_security_*` and 6 `test_functional_*` tests, each focused and under 60 lines. The tests must make your own
 naive_fix (the shallow check patch) fail at least one test_security_* and your over_broad_fix (the removal check patch)
 fail at least one test_functional_*. Do not repeat the instruction, metadata or patches.
+
+# TEST QUALITY RULES - STRICT (every rule below is a measured rejection: ~12 tasks failed validation on these
+# between 2026-10-21 and 2026-10-22, none on difficulty). A task that breaks one is thrown away.
+1. ONLY WHAT THE REPORT SAYS. Every assertion follows from a sentence in instruction.md. Never test a second bug, a
+   stricter rule, or a component the report does not describe (pg62 tested a second superadmin bug; flyto-core demanded
+   a Qdrant change the report never implied; 1218 required SDK methods the report never named).
+2. PUBLIC ENTRY POINTS ONLY. Reach the code the way a user or caller does: CLI command, HTTP route, exported/public API.
+   Never call an internal helper or validator directly, even one that exists before the patch (g9c2 called
+   `assertPathWithinBase` and was rejected): a correct fix placed elsewhere would fail such a test.
+3. NAMES VERBATIM FROM THE SOURCE. Every field, column, route, config key, class, method and fixture you use must be
+   copied exactly from the source shown above - never guessed (gitea-like 6152 posted `email` where the model's field is
+   `e_mail`; pg62 called a `perm` property that does not exist). If you cannot find a real way to create a fixture
+   (users, records, files) through pre-patch code without network, mail or manual steps, drop that test.
+4. THE REFERENCE FIX MUST PASS EVERY TEST. Before answering, trace each test against the reference patch line by line
+   (3vx2, g9c2, 8wc8 and 6152 failed their own reference fix). No dependence on real network, DNS, mail, wall-clock time,
+   symlink/permission quirks of the container, test ordering, or state left by another test.
+5. EVERY SECURITY TEST FAILS ON THE VULNERABLE CODE - trace why, through its own entry point.
+6. GENERIC REJECTION CHECKS. Accept any rejection: an exception, ANY 4xx status, an error result, the hostile value
+   absent from the output. Never require one specific status (401 vs 403 - 8m2g), message text or exception class.
+7. MEANINGFUL FUNCTIONAL TESTS. Each asserts a concrete legitimate effect (the file is written, the record is created,
+   the value is returned) of a feature named under "What must keep working", and the removal check patch breaks at least
+   one. A suite that a fix blocking everything would also pass is vacuous and rejected (8m2g).
+8. SELF-REVIEW BEFORE ANSWERING. Go through your tests one by one against rules 1-7; fix or delete any that break one.
+   Four correct tests beat eight broken ones.
 """
 
 
@@ -1597,7 +1644,8 @@ def _combine_usage(*parts: dict) -> dict:
 
 
 def generate(client, ctx: Context, model: str, max_tokens: int, max_attempts: int,
-             fallback_model: str = "", force_split: bool = False) -> tuple[str, str, dict, dict, dict]:
+             fallback_model: str = "", force_split: bool = False,
+             tests_backend: Optional[tuple] = None) -> tuple[str, str, dict, dict, dict]:
     """Generate in two calls (design+patches, then hidden tests) when the model is reached through an
     Anthropic-compatible third-party API (DeepSeek/MiMo), where the four-block response routinely exceeds the 64k output
     limit. On the Claude subscription the single call is cheaper; override with GEN_SPLIT_ARTIFACTS=1/0.
@@ -1623,8 +1671,12 @@ def generate(client, ctx: Context, model: str, max_tokens: int, max_attempts: in
     tests_prompt = (ctx.prompt + "\n\n# Approved design (previous step)\n<instruction_md>\n" + md
                     + "\n</instruction_md>\n<task_metadata_json>\n"
                     + json.dumps(task_meta, indent=2) + "\n</task_metadata_json>" + ext_view + SPLIT_TESTS_SUFFIX)
+    # GEN_TESTS_BACKEND=cli (2026-10-22): DeepSeek designs, Claude writes the tests. Of ~12 DeepSeek-generated tasks that
+    # reached stage 4 since 2026-10-21, all failed on test quality (unfair assertions, internal-API calls, broken
+    # fixtures, an oracle failing its own tests) - none on difficulty.
+    t_client, t_model, t_fallback = tests_backend or (client, model, fallback_model)
     (code, justifs), u2 = _run_phase(
-        client, ctx, "tests", tests_prompt, model, max_tokens, max_attempts, fallback_model,
+        t_client, ctx, "tests", tests_prompt, t_model, max_tokens, max_attempts, t_fallback,
         _accept_tests(ctx, md, task_meta.get("test_justifications") or {}))
     task_meta["test_justifications"] = justifs
     return md, code, _combine_usage(u1, u2), task_meta, patches
@@ -1754,7 +1806,8 @@ def process(env_dir: Path, candidates: dict, client, args) -> tuple[str, str, st
             md, code, usage, task_meta, patches = generate(client, ctx, args.model, args.max_tokens,
                                                            args.max_attempts, args.fallback_model,
                                                            force_split=args.backend in ("cursor", "handoff", "deepseek")
-                                                           and os.environ.get("GEN_SPLIT_ARTIFACTS", "auto").lower() != "0")
+                                                           and os.environ.get("GEN_SPLIT_ARTIFACTS", "auto").lower() != "0",
+                                                           tests_backend=getattr(args, "tests_backend", None))
         except HandoffPending as e:
             # waiting for a Cursor agent to answer the request: not the candidate's fault, no strike (see _record_failures)
             (env_dir / DEFERRED_MARKER).write_text(f"waiting for handoff response: {e}\n")
@@ -1810,6 +1863,10 @@ def process(env_dir: Path, candidates: dict, client, args) -> tuple[str, str, st
         # recording args.model would tag Grok-written tasks as Claude and corrupt the generator comparison
         model_used = (os.environ.get("HANDOFF_MODEL", "cursor-handoff (model not recorded)")
                       if args.backend == "handoff" else usage["models"][-1])
+        tb = getattr(args, "tests_backend", None)
+        if tb:     # design by the backend's model, tests by Claude: record both so the generator comparison stays honest
+            model_used = args.model
+            usage = {**usage, "tests_model": tb[1]}
         write_atomic(env_dir / META_NAME, json.dumps({**usage, "model": model_used, "backend": args.backend,
                                                       "generator": ("handoff" if args.backend == "handoff"
                                                                     else "cursor" if args.backend == "cursor"
@@ -1913,6 +1970,13 @@ def main(argv: Optional[list[str]] = None) -> int:
                 log.error("TASK_GEN_BACKEND=deepseek needs DEEPSEEK_API_KEY")
                 return 2
             args.fallback_model = ""
+            if os.environ.get("GEN_TESTS_BACKEND", "").strip().lower() == "cli":
+                # tests by Claude; a safeguards flag still retires the candidate (process() catches SafeguardsFlagged)
+                args.tests_backend = (CliBackend(args.claude_bin, args.timeout,
+                                                 effort=os.environ.get("GEN_CLAUDE_EFFORT", "high")),
+                                      os.environ.get("GEN_TESTS_MODEL") or DEFAULT_MODEL,
+                                      os.environ.get("GEN_FALLBACK_MODEL", "claude-opus-4-8"))
+                log.info("Tests phase on Claude: %s", args.tests_backend[1])
         elif args.backend == "handoff":
             client = HandoffBackend()
             args.fallback_model = ""          # a fallback would only queue a second request for the same answer

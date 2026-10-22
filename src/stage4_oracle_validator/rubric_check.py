@@ -126,8 +126,9 @@ def check_task(env_dir: Path, backend: CliBackend, model: str, timeout_note: str
         reply = _verdict(text)
     except ValueError:
         # The reviewer's output was stopped (safety filter) or malformed: same fallback model as task generation.
-        fallback = os.environ.get("GEN_FALLBACK_MODEL", "claude-opus-4-8")
-        if not fallback or fallback == model:
+        from src.common.llm import review_fallback_model
+        fallback = review_fallback_model(model)
+        if not fallback:
             raise
         log.warning("Rubric reviewer gave no verdict; retrying with the fallback model", extra={"model": fallback})
         text, _ = backend.complete(fallback, system, [{"role": "user", "content": prompt}], max_out)

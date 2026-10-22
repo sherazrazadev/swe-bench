@@ -350,8 +350,9 @@ def review(backend: CliBackend, model: str, plan: dict, patch: str) -> dict[str,
     try:
         return parse(text)
     except ValueError:      # malformed (not a flag): the generation fallback model, once - as rubric_check does
-        fallback = os.environ.get("GEN_FALLBACK_MODEL", "claude-opus-4-8")
-        if not fallback or fallback == model:
+        from src.common.llm import review_fallback_model
+        fallback = review_fallback_model(model)
+        if not fallback:
             raise
         text, _ = backend.complete(fallback, system, [{"role": "user", "content": prompt}], max_out)
         return parse(text)
@@ -360,7 +361,8 @@ def review(backend: CliBackend, model: str, plan: dict, patch: str) -> dict[str,
 # --------------------------------------------------------------------------- #
 # Orchestration
 # --------------------------------------------------------------------------- #
-def gate_one(env_dir: Path, rec: dict, cfg: Config, backend: Optional[CliBackend]) -> dict[str, Any]:
+def gate_one(env_dir: Path, rec: dict, cfg: Config, backend: Optional[CliBackend],
+             review_model: str = "") -> dict[str, Any]:
     cached = env_dir / GATE_FILE
     if cached.is_file():
         try:
@@ -439,7 +441,7 @@ def gate_one(env_dir: Path, rec: dict, cfg: Config, backend: Optional[CliBackend
         if backend is None:
             return done("proceed", "no reviewer (rubric backend disabled)")
         try:
-            rv = review(backend, cfg.anthropic_model, plan, patch)
+            rv = review(backend, review_model or cfg.anthropic_model, plan, patch)
         except SafeguardsFlagged as e:
             # standing rule: a flagged candidate is retired, never retried on any Claude model, never worked around
             (env_dir / "safeguards_flagged.txt").write_text(str(e))
@@ -478,11 +480,12 @@ def run(cfg: Config, src: Path, env_root: Path, only: Optional[list[str]] = None
                 and (not only or i in set(only))]
     if not todo:
         return {}
-    backend = CliBackend(cfg.claude_bin, float(os.environ.get("PLAN_GATE_TIMEOUT_SEC", "900")),
-                         effort=os.environ.get("PLAN_GATE_CLAUDE_EFFORT", "high"))
+    from src.common.llm import reviewer_backend
+    backend, review_model = reviewer_backend(cfg, float(os.environ.get("PLAN_GATE_TIMEOUT_SEC", "900")),
+                                             effort=os.environ.get("PLAN_GATE_CLAUDE_EFFORT", "high"))
     log.info("Plan gate", extra={"mode": mode(), "candidates": len(todo)})
     with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
-        results = dict(zip(todo, pool.map(lambda i: gate_one(env_root / i, recs[i], cfg, backend), todo)))
+        results = dict(zip(todo, pool.map(lambda i: gate_one(env_root / i, recs[i], cfg, backend, review_model), todo)))
     with StateManager(cfg.state_db) as state:
         for i, res in results.items():
             v, why = res.get("verdict"), res.get("why", "")

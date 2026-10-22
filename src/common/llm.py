@@ -40,6 +40,36 @@ def normalize_model(name: str) -> str:
     return f"claude-{m[1]}-{m[2]}-{m[3]}" if m else name
 
 
+def review_vendor() -> str:
+    """Who reviews (plan-gate review, stage-4 rubric): mimo (default) | deepseek | claude. User decision 2026-10-22: no
+    Claude quota in the pipeline. MiMo by default because DeepSeek designs the tasks and must not grade its own work."""
+    return os.environ.get("REVIEW_BACKEND", "mimo").strip().lower()
+
+
+def reviewer_backend(cfg, timeout: float, effort: Optional[str] = None) -> tuple["CliBackend", str]:
+    """(backend, model) for the reviewer. A non-Claude reviewer runs through the same Claude Code harness against the
+    vendor's Anthropic-compatible API - no Anthropic quota is used."""
+    vendor = review_vendor()
+    if vendor == "claude":
+        return CliBackend(cfg.claude_bin, timeout, effort=effort), cfg.anthropic_model
+    ep = next((e for e in cfg.eval_endpoints() if e.tag == vendor), None)
+    if ep is None or not ep.env.get("ANTHROPIC_BASE_URL"):
+        raise SystemExit(f"REVIEW_BACKEND={vendor}: no Anthropic-compatible endpoint configured for it")
+    model = ep.model.split("/")[-1]
+    env = {"ANTHROPIC_BASE_URL": ep.env["ANTHROPIC_BASE_URL"], "ANTHROPIC_AUTH_TOKEN": ep.api_key,
+           "ANTHROPIC_API_KEY": ep.api_key, "ANTHROPIC_MODEL": model, "ANTHROPIC_SMALL_FAST_MODEL": model,
+           "ANTHROPIC_DEFAULT_OPUS_MODEL": model, "ANTHROPIC_DEFAULT_SONNET_MODEL": model,
+           "ANTHROPIC_DEFAULT_HAIKU_MODEL": model, "CLAUDE_CODE_SUBAGENT_MODEL": model,
+           "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1", "DISABLE_AUTOUPDATER": "1"}
+    return CliBackend(cfg.claude_bin, timeout, env_overrides=env, effort=effort if vendor == "deepseek" else None), model
+
+
+def review_fallback_model(model: str) -> str:
+    """The Claude fallback (Opus 4.8) only when Claude reviews; never route a non-Claude review to Claude."""
+    fb = os.environ.get("GEN_FALLBACK_MODEL", "claude-opus-4-8") if review_vendor() == "claude" else ""
+    return "" if fb == model else fb
+
+
 def _external_anthropic_compat() -> bool:
     """True when Claude Code should bill an Anthropic-compatible third-party API (not Claude subscription)."""
     base = (os.environ.get("ANTHROPIC_BASE_URL") or "").strip().lower()

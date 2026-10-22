@@ -622,9 +622,11 @@ def main(argv: Optional[list[str]] = None, cfg: Optional[Config] = None) -> int:
         # DeepSeek's CoT for a full rubric can exceed 15 min; the output cap is in rubric_check.py.
         # rubric-only effort (2026-10-20): .env's CLAUDE_CODE_EFFORT_LEVEL=max kept two rubric reviews running 30 min
         # (the same failure generation had); the reply is a short JSON verdict
-        backend = None if args.skip_rubric else CliBackend(
-            cfg.claude_bin, float(os.environ.get("RUBRIC_TIMEOUT_SEC", "900")),
-            effort=os.environ.get("RUBRIC_CLAUDE_EFFORT", "high"))
+        backend = None
+        if not args.skip_rubric:     # REVIEW_BACKEND (default mimo, 2026-10-22): no Claude quota in the pipeline
+            from src.common.llm import reviewer_backend
+            backend, args.model = reviewer_backend(cfg, float(os.environ.get("RUBRIC_TIMEOUT_SEC", "900")),
+                                                   effort=os.environ.get("RUBRIC_CLAUDE_EFFORT", "high"))
         abort: list[bool] = []
         counts = {"ok": 0, "failed_oracle": 0, "rejected": 0, "regenerate": 0, "failed": 0}
         try:

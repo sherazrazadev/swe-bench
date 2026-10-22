@@ -204,8 +204,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 0
     if args.update_lessons:
         from src.common import knowledge
-        from src.common.llm import CliBackend
-        ok = knowledge.update_lessons(cfg, CliBackend(cfg.claude_bin, 900.0), cfg.anthropic_model)
+        from src.common.llm import reviewer_backend
+        ok = knowledge.update_lessons(cfg, *reviewer_backend(cfg, 900.0))   # REVIEW_BACKEND: no Claude quota by default
         print("lessons updated" if ok else "nothing to update (no outcomes recorded yet)")
         return 0
 
